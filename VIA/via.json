@@ -1,0 +1,145 @@
+{
+    "name": "Magnetic Viking",
+    "vendorId": "0x4D47",
+    "productId": "0x0012",
+    "matrix": {
+        "rows": 4,
+        "cols": 17
+    },
+    "layouts": {
+        "keymap": [
+            [
+                "0,0",
+                "0,1",
+                "0,2",
+                "0,3",
+                "0,4",
+                "0,5",
+                "0,6",
+                "0,7",
+                "0,8",
+                "0,9",
+                "0,10",
+                "0,11",
+                "0,12",
+                "0,13",
+                "0,14"
+            ],
+            [
+                { "w": 1.5 },
+                "1,0",
+                "1,1",
+                "1,2",
+                "1,3",
+                "1,4",
+                "1,5",
+                "1,6",
+                "1,7",
+                "1,8",
+                "1,9",
+                "1,10",
+                "1,11",
+                "1,12",
+                { "w": 1.5 },
+                "1,14"
+            ],
+            [
+                { "w": 1.75 },
+                "2,0",
+                "2,1",
+                "2,2",
+                "2,3",
+                "2,4",
+                "2,5",
+                "2,6",
+                "2,7",
+                "2,8",
+                "2,9",
+                "2,10",
+                "2,11",
+                { "w": 2.25 },
+                "2,13"
+            ],
+            [
+                { "w": 2.25 },
+                "3,0",
+                "3,2",
+                "3,3",
+                "3,4",
+                "3,5",
+                "3,6",
+                "3,7",
+                "3,8",
+                "3,9",
+                "3,10",
+                "3,11",
+                { "w": 1.75 },
+                "3,12",
+                "3,14"
+            ],
+            [
+                { "w": 1.5 },
+                "0,15",
+                "1,15",
+                { "w": 1.5 },
+                "2,15",
+                { "w": 7 },
+                "3,15",
+                { "w": 1.5 },
+                "2,16",
+                "1,16",
+                { "w": 1.5 },
+                "0,16"
+            ]
+        ]
+    },
+    "menus": [
+        {
+            "label": "PCB CONFIG",
+            "content": [
+                {
+                    "label": "HALL SENSORS",
+                    "content": [
+                        {
+                            "label": "THRESHOLD",
+                            "type": "range",
+                            "options": [10, 90],
+                            "content": ["id_hall_threshold", 0, 3]
+                        },
+                        {
+                            "label": "FAST MODE",
+                            "type": "toggle",
+                            "content": ["id_hall_fast_mode", 0, 4]
+                        },
+                        {
+                            "label": "RESPONSE CURVE",
+                            "type": "dropdown",
+                            "options": [
+                                ["LINEAL", 0],
+                                ["CURVE 1", 1],
+                                ["CURVE 2", 2],
+                                ["CURVE 3", 3]
+                            ],
+                            "content": ["id_hall_curve", 0, 5]
+                        },
+                        {
+                            "label": "CALIBRATE",
+                            "type": "toggle",
+                            "content": ["id_hall_sensors_calibrate", 0, 1]
+                        }
+                    ]
+                },
+                {
+                    "label": "LAYOUT",
+                    "content": [
+                        {
+                            "label": "RESET KEYMAP",
+                            "type": "toggle",
+                            "content": ["id_layout_reset_keymap", 0, 2]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
