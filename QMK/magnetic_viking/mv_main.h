@@ -20,6 +20,6 @@ enum via_custom_value_id {
   id_hall_sensors_calibrate = 1,
   id_layout_reset_keymap,
   id_hall_threshold,
-  id_hall_fast_mode,
+  id_hall_fast_trigger,
   id_hall_curve
 };

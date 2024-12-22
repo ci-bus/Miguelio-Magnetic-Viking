@@ -1,5 +1,6 @@
 ANALOG_DRIVER_REQUIRED = yes
 VIA_ENABLE = yes
+WS2812_DRIVER = vendor
 CUSTOM_MATRIX = yes
 SRC += mv_main.c
 CONSOLE_ENABLE = no
