@@ -13,23 +13,27 @@
 #include "quantum.h"
 
 static matrix_row_t matrix[MATRIX_ROWS]                                 = {0};
-static int8_t       matrix_hall_base[MATRIX_ROWS * MATRIX_COLS]         = {0};
-static int8_t       matrix_hall_range[MATRIX_ROWS * MATRIX_COLS]        = {0};
-static int8_t       matrix_hall_fast_trigger[MATRIX_ROWS * MATRIX_COLS] = {0};
+static uint8_t      matrix_hall_base[MATRIX_ROWS * MATRIX_COLS]         = {0};
+static uint8_t      matrix_hall_range[MATRIX_ROWS * MATRIX_COLS]        = {0};
+static uint8_t      matrix_hall_fast_trigger[MATRIX_ROWS * MATRIX_COLS] = {0};
 static pin_t        row_pins[MATRIX_ROWS]                               = MATRIX_ROW_PINS;
 static pin_t        col_pins[MATRIX_COLS]                               = MATRIX_COL_PINS;
-static int8_t       hall_threshold                                      = HALL_DEFAULT_THRESHOLD;
-static int8_t       hall_release                                        = HALL_DEFAULT_THRESHOLD - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
-static int16_t      raw_value                                           = 0;
+static uint8_t      hall_threshold                                      = HALL_DEFAULT_THRESHOLD;
+static uint8_t      hall_release                                        = HALL_DEFAULT_THRESHOLD - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
+static uint16_t     raw_value                                           = 0;
 static bool         calibrating                                         = false;
 static bool         fast_trigger                                        = false;
 static float        curve_response                                      = 0;
-static int8_t       curve_table[101]                                    = {0};
+static uint8_t      curve_table[101]                                    = {0};
+static uint16_t     calibrating_light_time                              = 0;
 
 bool led_update_kb(led_t led_state) {
     bool res = led_update_user(led_state);
     if (res) {
-        if (led_state.caps_lock) {
+        if (calibrating) {
+            rgblight_enable_noeeprom();
+            rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
+        } else if (led_state.caps_lock) {
             rgblight_enable_noeeprom();
         } else {
             rgblight_disable_noeeprom();
@@ -74,20 +78,11 @@ void matrix_hall_get_range(void) {
             uint8_t index            = (row * MATRIX_COLS) + col;
             matrix_hall_range[index] = eeprom_read_byte((uint8_t *)EEPROM_HALL_RANGE_START + index);
             //  Needs to calibrate, get default range
-            if (matrix_hall_range[index] <= 0 || matrix_hall_range[index] > 127) {
-                matrix_hall_range[index] = HALL_DEFAULT_RANGE;
+            if (matrix_hall_range[index] < HALL_MIN_RANGE) {
+                matrix_hall_range[index] = HALL_MIN_RANGE;
             }
-        }
-    }
-}
-
-void matrix_hall_reset_range(bool reset_eeprom) {
-    memset(matrix_hall_range, 0, sizeof(matrix_hall_range));
-    if (reset_eeprom) {
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                uint8_t index = (row * MATRIX_COLS) + col;
-                eeprom_update_byte((uint8_t *)EEPROM_HALL_RANGE_START + index, 0);
+            if (matrix_hall_range[index] > HALL_MAX_RANGE) {
+                matrix_hall_range[index] = HALL_MAX_RANGE;
             }
         }
     }
@@ -106,11 +101,16 @@ void create_table_curve_response(float curve_response) {
     }
 }
 
+void matrix_hall_reset_range(void) {
+    memset(matrix_hall_range, HALL_MIN_RANGE, sizeof(matrix_hall_range));
+}
+
 void get_configuration_calibrating(void) {
-    calibrating = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate) == 1);
+    // 170(10101010) define first calibrate needed
+    calibrating = ((eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate) == 1) || (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG) != 170));
     if (calibrating) {
         // Reset range eeprom
-        matrix_hall_reset_range(true);
+        matrix_hall_reset_range();
 #ifdef CONSOLE_ENABLE
         uprintf("Range reseted!\n");
         uprintf("Calibrating...\n");
@@ -138,6 +138,10 @@ void get_configuration_curve_response(void) {
 }
 
 void get_configurations(void) {
+    // Base sensor signal
+    matrix_hall_get_base();
+    // Range switch sensor value
+    matrix_hall_get_range();
     // Calibrating
     get_configuration_calibrating();
     // Threshold and release points
@@ -157,12 +161,8 @@ void matrix_init(void) {
         gpio_set_pin_input(row_pins[row]);
         analogReadPin(row_pins[row]);
     }
-    matrix_hall_get_base();
-    matrix_hall_reset_range(false);
-    matrix_hall_get_range();
     get_configurations();
     matrix_init_kb();
-    // TODO Comprobar primer calibrado eeprom EEPROM_CUSTOM_CONFIG si no es 170
 }
 
 // TODO crear funciones indicardor led calibrado
@@ -181,6 +181,10 @@ uint8_t matrix_scan(void) {
                 // Update range
                 if (raw_value > matrix_hall_base[index] && raw_value - matrix_hall_base[index] > matrix_hall_range[index]) {
                     matrix_hall_range[index] = raw_value - matrix_hall_base[index];
+                    if (!calibrating_light_time) {
+                        rgblight_setrgb(RGB_RED);
+                    }
+                    calibrating_light_time = timer_read();
 #ifdef CONSOLE_ENABLE
                     uprintf("New col: %u row: %u range value: %u\n", col, row, matrix_hall_range[index]);
 #endif
@@ -243,6 +247,11 @@ uint8_t matrix_scan(void) {
         wait_us(HALL_WAIT_US);
     }
 
+    if (calibrating && calibrating_light_time > 0 && timer_elapsed(calibrating_light_time) > HALL_CALIBRATING_LIGHT_TIME) {
+        rgblight_setrgb(RGB_BLUE);
+        calibrating_light_time = 0;
+    }
+
     matrix_scan_kb();
     return changed;
 }
@@ -280,6 +289,8 @@ void custom_set_value(uint8_t *data) {
                 for (uint8_t index = 0; index < sizeof(matrix_hall_range); index++) {
                     eeprom_update_byte((uint8_t *)EEPROM_HALL_RANGE_START + index, matrix_hall_range[index]);
                 }
+                // Define first calibrate done
+                eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG, 170);
 #ifdef CONSOLE_ENABLE
                 uprintf("Ranges saved!\n");
 #endif
