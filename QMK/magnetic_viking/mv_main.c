@@ -11,6 +11,9 @@
 #include "print.h"
 #include "math.h"
 #include "quantum.h"
+#ifdef JOYSTICK_ENABLE
+#    include "joystick.h"
+#endif
 
 static matrix_row_t matrix[MATRIX_ROWS]                                 = {0};
 static uint8_t      matrix_hall_base[MATRIX_ROWS * MATRIX_COLS]         = {0};
@@ -26,14 +29,161 @@ static bool         fast_trigger                                        = false;
 static float        curve_response                                      = 0;
 static uint8_t      curve_table[101]                                    = {0};
 static uint16_t     calibrating_light_time                              = 0;
+static uint8_t      current_layer                                       = 0;
+#ifdef JOYSTICK_ENABLE
+// clang-format off
+joystick_config_t joystick_axis[JOYSTICK_AXIS_COUNT] = {
+    JOYSTICK_AXIS_VIRTUAL, // Index 0, 1
+    JOYSTICK_AXIS_VIRTUAL, // Index 2, 3
+    JOYSTICK_AXIS_VIRTUAL, // Index 4, 5
+    JOYSTICK_AXIS_VIRTUAL, // Index 6, 7
+    JOYSTICK_AXIS_VIRTUAL, // Index 8, 9
+    JOYSTICK_AXIS_VIRTUAL  // Index 10, 11
+};
+// clang-format on
+static int    jt_axes_values[JOYSTICK_AXIS_COUNT] = {0};
+static jt_key jt_keys[JT_KEY_COUNT]               = {};
+// static uint8_t jt_temp_value = 0;
+
+uint8_t jt_get_keycode_index(uint16_t keycode) {
+    for (int i = 0; i < JT_KEY_COUNT; i++) {
+        if (JT_KEYCODES[i] == keycode) {
+            return i;
+        }
+    }
+    return JT_KEY_COUNT;
+}
+
+void init_joystick(void) {
+    uint8_t jt_index = 0;
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            keypos_t key     = (keypos_t){.col = col, .row = row};
+            uint16_t keycode = keymap_key_to_keycode(_GAMING, key);
+            uint8_t  index   = jt_get_keycode_index(keycode);
+            if (index != JT_KEY_COUNT) {
+                // Set key
+                jt_keys[jt_index] = (jt_key){.key = key, .index = index};
+#    ifdef CONSOLE_ENABLE
+                uprintf("Joystick key index: %u col: %u row: %u\n", index, col, row);
+#    endif
+                jt_index += 1;
+            }
+        }
+    }
+}
+
+void matrix_scan_joystick(void) {
+    memset(jt_axes_values, 0, sizeof(jt_axes_values));
+    uint8_t jt_index = 0;
+
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        if (jt_keys[jt_index].key.col != col) {
+            continue;
+        }
+        gpio_write_pin_high(col_pins[col]);
+        wait_us(HALL_WAIT_US);
+
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            if (jt_keys[jt_index].key.row != row) {
+                continue;
+            }
+            raw_value          = analogReadPin(row_pins[row]) / 4;
+            uint8_t index      = (row * MATRIX_COLS) + col;
+            uint8_t percent    = 0;
+            uint8_t axis_value = 0;
+            if (raw_value > matrix_hall_base[index]) {
+                percent = (raw_value - matrix_hall_base[index]) * 100 / matrix_hall_range[index];
+                if (percent > 100) {
+                    percent = 100;
+                }
+                // Get axis curved value
+                axis_value = curve_table[percent] * 127 / 100;
+            }
+            // Axes values
+            if (jt_keys[jt_index].index < JOYSTICK_AXIS_COUNT * 2) {
+                // Even sum and odd subtract
+                jt_axes_values[jt_keys[jt_index].index / 2] += axis_value * (jt_keys[jt_index].index & 1 ? 1 : -1);
+#    ifdef CONSOLE_ENABLE
+                if (jt_keys[jt_index].value != axis_value) {
+                    uprintf("Joystick axis index: %u value: %d\n", jt_keys[jt_index].index, axis_value);
+                    jt_keys[jt_index].value = axis_value;
+                }
+#    endif
+            } else { // Buttons
+                uint8_t jt_button_index = jt_keys[jt_index].index - (JOYSTICK_AXIS_COUNT * 2);
+                if (joystick_state.buttons[jt_button_index / 8] & (1 << (jt_button_index % 8))) {
+                    // Check released
+                    if (fast_trigger) {
+                        if (percent < matrix_hall_fast_trigger[index] - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+                            matrix[row] &= ~(1 << col);
+                            joystick_state.buttons[jt_button_index / 8] &= ~(1 << (jt_button_index % 8));
+                            joystick_state.dirty            = true;
+                            matrix_hall_fast_trigger[index] = percent;
+#    ifdef CONSOLE_ENABLE
+                            uprintf("Release joystick button index: %u value: %u\n", jt_button_index, raw_value);
+#    endif
+                        } else if (percent > matrix_hall_fast_trigger[index]) {
+                            matrix_hall_fast_trigger[index] = percent;
+                        }
+                    } else if (percent < hall_release) {
+                        joystick_state.buttons[jt_button_index / 8] &= ~(1 << (jt_button_index % 8));
+                        joystick_state.dirty = true;
+#    ifdef CONSOLE_ENABLE
+                        uprintf("Release joystick button index: %u value: %u\n", jt_button_index, raw_value);
+#    endif
+                    }
+                } else {
+                    // Check press
+                    if (fast_trigger) {
+                        if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+                            joystick_state.buttons[jt_button_index / 8] |= 1 << (jt_button_index % 8);
+                            joystick_state.dirty            = true;
+                            matrix_hall_fast_trigger[index] = percent;
+#    ifdef CONSOLE_ENABLE
+                            uprintf("Press joystick button index: %u value: %u\n", jt_button_index, raw_value);
+#    endif
+                        } else if (percent < matrix_hall_fast_trigger[index]) {
+                            matrix_hall_fast_trigger[index] = percent;
+                        }
+                    } else if (percent > hall_threshold) {
+                        joystick_state.buttons[jt_button_index / 8] |= 1 << (jt_button_index % 8);
+                        joystick_state.dirty = true;
+#    ifdef CONSOLE_ENABLE
+                        uprintf("Press joystick button index: %u value: %u\n", jt_button_index, raw_value);
+#    endif
+                    }
+                }
+            }
+            jt_index += 1;
+        }
+        gpio_write_pin_low(col_pins[col]);
+    }
+    // Send axes
+    for (uint8_t i = 0; i < JOYSTICK_AXIS_COUNT; i++) {
+        joystick_set_axis(i, jt_axes_values[i]);
+    }
+    joystick_flush();
+}
+#endif
+
+layer_state_t layer_state_set_user(layer_state_t state) {
+    current_layer = get_highest_layer(state); // Obtiene la capa activa más alta
+#ifdef CONSOLE_ENABLE
+    uprintf("Layer changed: %d\n", current_layer);
+#endif
+    switch (current_layer) {
+        case _GAMING:
+            init_joystick();
+            break;
+    }
+    return state;
+}
 
 bool led_update_kb(led_t led_state) {
     bool res = led_update_user(led_state);
     if (res) {
-        if (calibrating) {
-            rgblight_enable_noeeprom();
-            rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
-        } else if (led_state.caps_lock) {
+        if (led_state.caps_lock) {
             rgblight_enable_noeeprom();
         } else {
             rgblight_disable_noeeprom();
@@ -43,7 +193,7 @@ bool led_update_kb(led_t led_state) {
 }
 
 void keyboard_post_init_user(void) {
-    rgblight_disable();
+    rgblight_disable_noeeprom();
 }
 
 int8_t calcule_curve(int x, float n) {
@@ -67,7 +217,6 @@ void matrix_hall_get_base(void) {
                 matrix_hall_base[(row * MATRIX_COLS) + col] = analogReadPin(row_pins[row]) / 4;
             }
             gpio_write_pin_low(col_pins[col]);
-            wait_us(HALL_WAIT_US);
         }
     }
 }
@@ -163,11 +312,10 @@ void matrix_init(void) {
     }
     get_configurations();
     matrix_init_kb();
+    wait_ms(1000);
 }
 
-// TODO crear funciones indicardor led calibrado
-
-uint8_t matrix_scan(void) {
+uint8_t matrix_scan_keyboard(void) {
     bool changed = false;
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         gpio_write_pin_high(col_pins[col]);
@@ -177,83 +325,104 @@ uint8_t matrix_scan(void) {
             raw_value     = analogReadPin(row_pins[row]) / 4;
             uint8_t index = (row * MATRIX_COLS) + col;
 
-            if (calibrating) {
-                // Update range
-                if (raw_value > matrix_hall_base[index] && raw_value - matrix_hall_base[index] > matrix_hall_range[index]) {
-                    matrix_hall_range[index] = raw_value - matrix_hall_base[index];
-                    if (!calibrating_light_time) {
-                        rgblight_setrgb(RGB_RED);
-                    }
-                    calibrating_light_time = timer_read();
-#ifdef CONSOLE_ENABLE
-                    uprintf("New col: %u row: %u range value: %u\n", col, row, matrix_hall_range[index]);
-#endif
+            uint8_t percent = 0;
+            if (raw_value > matrix_hall_base[index]) {
+                // Calcule percent pressed
+                percent = (raw_value - matrix_hall_base[index]) * 100 / matrix_hall_range[index];
+                if (percent > 100) {
+                    percent = 100;
                 }
-            } else {
-                uint8_t percent = 0;
-                if (raw_value > matrix_hall_base[index]) {
-                    // Calcule percent pressed
-                    percent = (raw_value - matrix_hall_base[index]) * 100 / matrix_hall_range[index];
-                    if (percent > 100) {
-                        percent = 100;
-                    }
-                    // Get curve value
-                    percent = curve_table[percent];
-                }
-                if (matrix[row] & (1 << col)) {
-                    // Check released
-                    if (fast_trigger) {
-                        if (percent < matrix_hall_fast_trigger[index] - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
-                            matrix[row] &= ~(1 << col);
-                            changed                         = true;
-                            matrix_hall_fast_trigger[index] = percent;
-#ifdef CONSOLE_ENABLE
-                            uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
-#endif
-                        } else if (percent > matrix_hall_fast_trigger[index]) {
-                            matrix_hall_fast_trigger[index] = percent;
-                        }
-                    } else if (percent < hall_release) {
+                // Get curved value
+                percent = curve_table[percent];
+            }
+            if (matrix[row] & (1 << col)) {
+                // Check released
+                if (fast_trigger) {
+                    if (percent < matrix_hall_fast_trigger[index] - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
                         matrix[row] &= ~(1 << col);
-                        changed = true;
+                        changed                         = true;
+                        matrix_hall_fast_trigger[index] = percent;
 #ifdef CONSOLE_ENABLE
                         uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
 #endif
+                    } else if (percent > matrix_hall_fast_trigger[index]) {
+                        matrix_hall_fast_trigger[index] = percent;
                     }
-                } else {
-                    // Check press
-                    if (fast_trigger) {
-                        if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
-                            matrix[row] |= (1 << col);
-                            changed                         = true;
-                            matrix_hall_fast_trigger[index] = percent;
+                } else if (percent < hall_release) {
+                    matrix[row] &= ~(1 << col);
+                    changed = true;
 #ifdef CONSOLE_ENABLE
-                            uprintf("Press col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
+                    uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
 #endif
-                        } else if (percent < matrix_hall_fast_trigger[index]) {
-                            matrix_hall_fast_trigger[index] = percent;
-                        }
-                    } else if (percent > hall_threshold) {
+                }
+            } else {
+                // Check press
+                if (fast_trigger) {
+                    if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
                         matrix[row] |= (1 << col);
-                        changed = true;
+                        changed                         = true;
+                        matrix_hall_fast_trigger[index] = percent;
 #ifdef CONSOLE_ENABLE
                         uprintf("Press col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
 #endif
+                    } else if (percent < matrix_hall_fast_trigger[index]) {
+                        matrix_hall_fast_trigger[index] = percent;
                     }
+                } else if (percent > hall_threshold) {
+                    matrix[row] |= (1 << col);
+                    changed = true;
+#ifdef CONSOLE_ENABLE
+                    uprintf("Press col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
+#endif
                 }
             }
         }
         gpio_write_pin_low(col_pins[col]);
-        wait_us(HALL_WAIT_US);
-    }
-
-    if (calibrating && calibrating_light_time > 0 && timer_elapsed(calibrating_light_time) > HALL_CALIBRATING_LIGHT_TIME) {
-        rgblight_setrgb(RGB_BLUE);
-        calibrating_light_time = 0;
     }
 
     matrix_scan_kb();
     return changed;
+}
+
+void matrix_scan_calibrate(void) {
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        gpio_write_pin_high(col_pins[col]);
+        wait_us(HALL_WAIT_US);
+
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            raw_value     = analogReadPin(row_pins[row]) / 4;
+            uint8_t index = (row * MATRIX_COLS) + col;
+
+            // Update range
+            if (raw_value > matrix_hall_base[index] && raw_value - matrix_hall_base[index] > matrix_hall_range[index]) {
+                matrix_hall_range[index] = raw_value - matrix_hall_base[index];
+                if (!calibrating_light_time) {
+                    rgblight_setrgb(RGB_RED);
+                }
+                calibrating_light_time = timer_read();
+#ifdef CONSOLE_ENABLE
+                uprintf("New col: %u row: %u range value: %u\n", col, row, matrix_hall_range[index]);
+#endif
+            }
+        }
+        gpio_write_pin_low(col_pins[col]);
+    }
+}
+
+uint8_t matrix_scan(void) {
+#ifdef JOYSTICK_ENABLE
+    // Joystick funcionality
+    if (current_layer == _GAMING) {
+        matrix_scan_joystick();
+        return false;
+    }
+#endif
+    if (calibrating) {
+        matrix_scan_calibrate();
+        return false;
+    }
+    // Keyboard funcionality
+    return matrix_scan_keyboard();
 }
 
 void matrix_init_kb(void) {
