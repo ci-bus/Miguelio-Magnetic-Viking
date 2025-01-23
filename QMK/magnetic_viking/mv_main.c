@@ -14,11 +14,14 @@
 #ifdef JOYSTICK_ENABLE
 #    include "joystick.h"
 #endif
+#ifdef MIDI_ENABLE
+extern MidiDevice midi_device;
+#endif
 
 static matrix_row_t matrix[MATRIX_ROWS]                                 = {0};
-static uint8_t      matrix_hall_base[MATRIX_ROWS * MATRIX_COLS]         = {0};
-static uint8_t      matrix_hall_range[MATRIX_ROWS * MATRIX_COLS]        = {0};
-static uint8_t      matrix_hall_fast_trigger[MATRIX_ROWS * MATRIX_COLS] = {0};
+static uint16_t     matrix_hall_base[MATRIX_ROWS * MATRIX_COLS]         = {0};
+static uint16_t     matrix_hall_range[MATRIX_ROWS * MATRIX_COLS]        = {0};
+static uint16_t     matrix_hall_fast_trigger[MATRIX_ROWS * MATRIX_COLS] = {0};
 static pin_t        row_pins[MATRIX_ROWS]                               = MATRIX_ROW_PINS;
 static pin_t        col_pins[MATRIX_COLS]                               = MATRIX_COL_PINS;
 static uint8_t      hall_threshold                                      = HALL_DEFAULT_THRESHOLD;
@@ -28,8 +31,13 @@ static bool         calibrating                                         = false;
 static bool         fast_trigger                                        = false;
 static float        curve_response                                      = 0;
 static uint8_t      curve_table[101]                                    = {0};
-static uint16_t     calibrating_light_time                              = 0;
 static uint8_t      current_layer                                       = 0;
+#ifdef MIDI_ENABLE
+static uint16_t     midi_note_key[MATRIX_ROWS * MATRIX_COLS]      = {0};
+static matrix_row_t midi_note_on[MATRIX_ROWS]                     = {0};
+static uint8_t      midi_last_percent[MATRIX_ROWS * MATRIX_COLS]  = {0};
+static uint16_t     midi_velocity_time[MATRIX_ROWS * MATRIX_COLS] = {0};
+#endif
 #ifdef JOYSTICK_ENABLE
 // clang-format off
 joystick_config_t joystick_axis[JOYSTICK_AXIS_COUNT] = {
@@ -43,7 +51,6 @@ joystick_config_t joystick_axis[JOYSTICK_AXIS_COUNT] = {
 // clang-format on
 static int    jt_axes_values[JOYSTICK_AXIS_COUNT] = {0};
 static jt_key jt_keys[JT_KEY_COUNT]               = {};
-// static uint8_t jt_temp_value = 0;
 
 uint8_t jt_get_keycode_index(uint16_t keycode) {
     for (int i = 0; i < JT_KEY_COUNT; i++) {
@@ -88,17 +95,15 @@ void matrix_scan_joystick(void) {
             if (jt_keys[jt_index].key.row != row) {
                 continue;
             }
-            raw_value          = analogReadPin(row_pins[row]) / 4;
+            raw_value          = analogReadPin(row_pins[row]);
             uint8_t index      = (row * MATRIX_COLS) + col;
-            uint8_t percent    = 0;
             uint8_t axis_value = 0;
             if (raw_value > matrix_hall_base[index]) {
-                percent = (raw_value - matrix_hall_base[index]) * 100 / matrix_hall_range[index];
-                if (percent > 100) {
-                    percent = 100;
+                axis_value = (raw_value - matrix_hall_base[index]) * 127 / matrix_hall_range[index];
+                if (axis_value > 127) {
+                    axis_value = 127;
                 }
-                // Get axis curved value
-                axis_value = curve_table[percent] * 127 / 100;
+                // TODO curve value?
             }
             // Axes values
             if (jt_keys[jt_index].index < JOYSTICK_AXIS_COUNT * 2) {
@@ -112,6 +117,14 @@ void matrix_scan_joystick(void) {
 #    endif
             } else { // Buttons
                 uint8_t jt_button_index = jt_keys[jt_index].index - (JOYSTICK_AXIS_COUNT * 2);
+                uint8_t percent         = 0;
+                // Calcule percent pressed
+                percent = (raw_value - matrix_hall_base[index]) * 100 / matrix_hall_range[index];
+                if (percent > 100) {
+                    percent = 100;
+                }
+                // Get curved value
+                percent = curve_table[percent];
                 if (joystick_state.buttons[jt_button_index / 8] & (1 << (jt_button_index % 8))) {
                     // Check released
                     if (fast_trigger) {
@@ -167,15 +180,41 @@ void matrix_scan_joystick(void) {
 }
 #endif
 
+#ifdef MIDI_ENABLE
+void init_midi(void) {
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            keypos_t key     = (keypos_t){.col = col, .row = row};
+            uint16_t keycode = keymap_key_to_keycode(_MIDI, key);
+            uint8_t  index   = (row * MATRIX_COLS) + col;
+            if (keycode >= QK_MIDI_NOTE_C_0 && keycode <= QK_MIDI_NOTE_B_5) {
+                // Set midi key
+                midi_note_key[index] = keycode;
+#    ifdef CONSOLE_ENABLE
+                uprintf("Midi key index: %u col: %u row: %u\n", index, col, row);
+#    endif
+            }
+        }
+    }
+}
+#endif
+
 layer_state_t layer_state_set_user(layer_state_t state) {
     current_layer = get_highest_layer(state); // Obtiene la capa activa más alta
 #ifdef CONSOLE_ENABLE
     uprintf("Layer changed: %d\n", current_layer);
 #endif
     switch (current_layer) {
+#ifdef JOYSTICK_ENABLE
         case _GAMING:
             init_joystick();
             break;
+#endif
+#ifdef MIDI_ENABLE
+        case _MIDI:
+            init_midi();
+            break;
+#endif
     }
     return state;
 }
@@ -214,7 +253,8 @@ void matrix_hall_get_base(void) {
             gpio_write_pin_high(col_pins[col]);
             wait_us(HALL_WAIT_US);
             for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                matrix_hall_base[(row * MATRIX_COLS) + col] = analogReadPin(row_pins[row]) / 4;
+                raw_value                                   = analogReadPin(row_pins[row]);
+                matrix_hall_base[(row * MATRIX_COLS) + col] = raw_value > HALL_MIN_BASE ? raw_value : HALL_MIN_BASE;
             }
             gpio_write_pin_low(col_pins[col]);
         }
@@ -222,17 +262,16 @@ void matrix_hall_get_base(void) {
 }
 
 void matrix_hall_get_range(void) {
-    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            uint8_t index            = (row * MATRIX_COLS) + col;
-            matrix_hall_range[index] = eeprom_read_byte((uint8_t *)EEPROM_HALL_RANGE_START + index);
-            //  Needs to calibrate, get default range
-            if (matrix_hall_range[index] < HALL_MIN_RANGE) {
-                matrix_hall_range[index] = HALL_MIN_RANGE;
-            }
-            if (matrix_hall_range[index] > HALL_MAX_RANGE) {
-                matrix_hall_range[index] = HALL_MAX_RANGE;
-            }
+    for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
+        void *address            = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
+        matrix_hall_range[index] = eeprom_read_byte(address) << 8;
+        matrix_hall_range[index] |= eeprom_read_byte(address + 1);
+        //  Needs to calibrate, get default range
+        if (matrix_hall_range[index] < HALL_MIN_RANGE) {
+            matrix_hall_range[index] = HALL_MIN_RANGE;
+        }
+        if (matrix_hall_range[index] > HALL_MAX_RANGE) {
+            matrix_hall_range[index] = HALL_MAX_RANGE;
         }
     }
 }
@@ -251,13 +290,17 @@ void create_table_curve_response(float curve_response) {
 }
 
 void matrix_hall_reset_range(void) {
-    memset(matrix_hall_range, HALL_MIN_RANGE, sizeof(matrix_hall_range));
+    for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
+        matrix_hall_range[index] = HALL_MIN_RANGE;
+    }
 }
 
 void get_configuration_calibrating(void) {
     // 170(10101010) define first calibrate needed
     calibrating = ((eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate) == 1) || (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG) != 170));
     if (calibrating) {
+        // Go to base layer
+        layer_clear();
         // Reset range eeprom
         matrix_hall_reset_range();
 #ifdef CONSOLE_ENABLE
@@ -315,16 +358,55 @@ void matrix_init(void) {
     wait_ms(1000);
 }
 
+#ifdef MIDI_ENABLE
+void matrix_scan_midi(uint8_t index, uint8_t row, uint8_t col, uint8_t percent, uint16_t time) {
+    uint8_t midi_note = midi_note_key[index] - QK_MIDI_NOTE_C_0 + ((midi_config.octave - 2) * 12);
+    uint8_t velocity  = 0;
+    if ((midi_note_on[row] & (1 << col))) {
+        // Release
+        if (percent < HALL_MIDI_THRESHOLD - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+            midi_send_noteoff(&midi_device, midi_config.channel, midi_note, velocity);
+            midi_note_on[row] &= ~(1 << col);
+#    ifdef CONSOLE_ENABLE
+            uprintf("Midi note: %u octave %u velocity: %u\n", midi_note, midi_config.octave, velocity);
+#    endif
+        }
+    } else {
+        // Midi calcule velocity
+        if (percent > HALL_DEFAULT_THRESHOLD_MIN && midi_last_percent[index] <= HALL_DEFAULT_THRESHOLD_MIN) {
+            midi_velocity_time[index] = time;
+        }
+        // Press
+        if (percent > HALL_MIDI_THRESHOLD) {
+            velocity = 127 - timer_elapsed(midi_velocity_time[index]) + HALL_MIDI_KEY_PRESS_ELAPSED;
+            if (velocity < 64) {
+                velocity = 64;
+            } else if (velocity > 127) {
+                velocity = 127;
+            }
+            midi_send_noteon(&midi_device, midi_config.channel, midi_note, velocity);
+            midi_note_on[row] |= (1 << col);
+#    ifdef CONSOLE_ENABLE
+            uprintf("Midi note: %u octave: %u velocity: %u\n", midi_note, midi_config.octave, velocity);
+#    endif
+        }
+    }
+    midi_last_percent[index] = percent;
+}
+#endif
+
 uint8_t matrix_scan_keyboard(void) {
     bool changed = false;
+#ifdef MIDI_ENABLE
+    uint16_t time = timer_read();
+#endif
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         gpio_write_pin_high(col_pins[col]);
         wait_us(HALL_WAIT_US);
 
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            raw_value     = analogReadPin(row_pins[row]) / 4;
-            uint8_t index = (row * MATRIX_COLS) + col;
-
+            raw_value       = analogReadPin(row_pins[row]);
+            uint8_t index   = (row * MATRIX_COLS) + col;
             uint8_t percent = 0;
             if (raw_value > matrix_hall_base[index]) {
                 // Calcule percent pressed
@@ -335,6 +417,12 @@ uint8_t matrix_scan_keyboard(void) {
                 // Get curved value
                 percent = curve_table[percent];
             }
+#ifdef MIDI_ENABLE
+            if (midi_note_key[index] > 0) {
+                matrix_scan_midi(index, row, col, percent, time);
+                continue;
+            }
+#endif
             if (matrix[row] & (1 << col)) {
                 // Check released
                 if (fast_trigger) {
@@ -388,18 +476,12 @@ void matrix_scan_calibrate(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         gpio_write_pin_high(col_pins[col]);
         wait_us(HALL_WAIT_US);
-
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            raw_value     = analogReadPin(row_pins[row]) / 4;
+            raw_value     = analogReadPin(row_pins[row]);
             uint8_t index = (row * MATRIX_COLS) + col;
-
             // Update range
             if (raw_value > matrix_hall_base[index] && raw_value - matrix_hall_base[index] > matrix_hall_range[index]) {
                 matrix_hall_range[index] = raw_value - matrix_hall_base[index];
-                if (!calibrating_light_time) {
-                    rgblight_setrgb(RGB_RED);
-                }
-                calibrating_light_time = timer_read();
 #ifdef CONSOLE_ENABLE
                 uprintf("New col: %u row: %u range value: %u\n", col, row, matrix_hall_range[index]);
 #endif
@@ -455,8 +537,10 @@ void custom_set_value(uint8_t *data) {
         case id_hall_sensors_calibrate:
             if (value_data[0] == 0) {
                 // Save ranges
-                for (uint8_t index = 0; index < sizeof(matrix_hall_range); index++) {
-                    eeprom_update_byte((uint8_t *)EEPROM_HALL_RANGE_START + index, matrix_hall_range[index]);
+                for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
+                    void *address = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
+                    eeprom_update_byte(address, (uint8_t)(matrix_hall_range[index] >> 8));
+                    eeprom_update_byte(address + 1, (uint8_t)(matrix_hall_range[index] & 0xFF));
                 }
                 // Define first calibrate done
                 eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG, 170);

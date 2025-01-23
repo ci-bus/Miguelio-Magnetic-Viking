@@ -14,17 +14,20 @@
     1 Keyboard customs keycodes
     2 Joystick configs (This actives joystick and disables keyboard)
 \*/
-enum layer_names { _BASE, _FN, _GAMING };
+enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 
 // Hall sensor configs
-#define HALL_CALIBRATE_ROUNDS 20            // Round to get base value
-#define HALL_MIN_RANGE 5                    // Min analog value from base
-#define HALL_MAX_RANGE 127                  // Max analog value from base
-#define HALL_WAIT_US 500                    // Wait to change column active
+#define HALL_CALIBRATE_ROUNDS 20            // Rounds to get base value
+#define HALL_MIN_BASE 100                   // Min base value
+#define HALL_MIN_RANGE 10                   // Min analog value from base
+#define HALL_MAX_RANGE 512                  // Max analog value from base
+#define HALL_WAIT_US 250                    // Wait to change column active
 #define HALL_DEFAULT_THRESHOLD 50           // Threshold trigger value in percent
 #define HALL_DEFAULT_THRESHOLD_MIN 10       // Min threshold trigger value in percent
 #define HALL_DEFAULT_THRESHOLD_MAX 90       // Max threshold trigger value in percent
 #define HALL_DEFAULT_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+#define HALL_MIDI_THRESHOLD 80              // Threshold trigger value in percent to midi
+#define HALL_MIDI_KEY_PRESS_ELAPSED 20      // Elapsed time pressing keys
 
 // VIA and custom configs
 #define EEPROM_CUSTOM_CONFIG (VIA_EEPROM_CUSTOM_CONFIG_ADDR)

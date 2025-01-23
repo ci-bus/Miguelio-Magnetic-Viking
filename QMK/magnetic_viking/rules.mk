@@ -5,3 +5,4 @@ CUSTOM_MATRIX = yes
 SRC += mv_main.c
 CONSOLE_ENABLE = no
 JOYSTICK_ENABLE = yes
+MIDI_ENABLE = yes
