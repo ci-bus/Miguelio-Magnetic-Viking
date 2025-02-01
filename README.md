@@ -13,6 +13,6 @@ Teclado mecánico 60% PCB HE magnética con sensores hall effect
 
 ![Mechanical keyboard PCB HE hall effect](https://github.com/ci-bus/Miguelio-Magnetic-Viking/blob/master/documentation/pcb.png)
 
-### Información extra
+### + Información
 
 [Wiki Español](https://github.com/ci-bus/Miguelio-Magnetic-Viking/wiki/Espa%C3%B1ol)
