@@ -26,8 +26,11 @@ enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 #define HALL_DEFAULT_THRESHOLD_MIN 10       // Min threshold trigger value in percent
 #define HALL_DEFAULT_THRESHOLD_MAX 90       // Max threshold trigger value in percent
 #define HALL_DEFAULT_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
-#define HALL_MIDI_THRESHOLD 80              // Threshold trigger value in percent to midi
-#define HALL_MIDI_KEY_PRESS_ELAPSED 20      // Elapsed time pressing keys
+
+#ifdef MIDI_ENABLE
+#    define HALL_MIDI_THRESHOLD 80         // Threshold trigger value in percent to midi
+#    define HALL_MIDI_KEY_PRESS_ELAPSED 20 // Elapsed time pressing keys
+#endif
 
 // VIA and custom configs
 #define EEPROM_CUSTOM_CONFIG (VIA_EEPROM_CUSTOM_CONFIG_ADDR)
