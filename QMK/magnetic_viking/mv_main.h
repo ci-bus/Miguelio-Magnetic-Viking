@@ -17,15 +17,21 @@
 enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 
 // Hall sensor configs
-#define HALL_CALIBRATE_ROUNDS 20            // Rounds to get base value
-#define HALL_MIN_BASE 100                   // Min base value
-#define HALL_MIN_RANGE 10                   // Min analog value from base
+#define HALL_GET_BASE_ROUNDS 50             // Rounds to get base value
+#define HALL_MIN_BASE 200                   // Min base value
+#define HALL_MIN_RANGE 50                   // Min analog value from base
 #define HALL_MAX_RANGE 512                  // Max analog value from base
-#define HALL_WAIT_US 250                    // Wait to change column active
+#define HALL_WAIT_US 50                     // Wait to change column active
 #define HALL_DEFAULT_THRESHOLD 50           // Threshold trigger value in percent
 #define HALL_DEFAULT_THRESHOLD_MIN 10       // Min threshold trigger value in percent
 #define HALL_DEFAULT_THRESHOLD_MAX 90       // Max threshold trigger value in percent
 #define HALL_DEFAULT_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+
+// If ESC key is pressed on init it jump to bootloader
+#ifdef BOOTMAGIC_ENABLE
+#define HALL_BOOTMAGIC_JUMP_TOP_VALUE 600
+#define HALL_BOOTMAGIC_JUMP_BOTTOM_VALUE 300
+#endif
 
 #ifdef MIDI_ENABLE
 #    define HALL_MIDI_THRESHOLD 80         // Threshold trigger value in percent to midi
@@ -42,7 +48,7 @@ enum via_custom_value_id {
     id_layout_reset_keymap,        // Reset keymaps to default
     id_hall_threshold,             // Threshold point
     id_hall_fast_trigger,          // Fast release and press again
-    id_hall_curve_response         // Sensors response curve
+    id_layout_1_color              // RGB color when layout 1 is active
 };
 // clang-format on
 
