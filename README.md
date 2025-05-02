@@ -1,15 +1,17 @@
 # Miguelio Magnetic Viking
 
-Teclado mecánico 60% PCB HE magnética con sensores hall effect
+Mechanical keyboard 60% magnetic HE PCB with hall effect sensors
 
-### Características principales
+[Sales available soon at:](https://www.siberiacasewood.com/producto/pcb-hall-effect-60-magnetic-viking/?preview=true) 
 
-- Layouts 60% Estandar ANSI + ISO + Tsangan
-- Compatible con todos los switches magnéticos
-- Firmware QMK configurable con VIA
-- Conectores USB C + 2 x JST
-- Modo Teclado + JoyStick + instrumento MIDI
-- Led RGB CapsLock
+### Main features
+
+- 60% ANSI + ISO + Tsangan standard layouts
+- Compatible with all magnetic switches
+- QMK firmware configurable with VIA
+- USB C + 2 x JST connectors
+- Keyboard + JoyStick + MIDI instrument mode
+- CapsLock RGB LED
 
 ![Mechanical keyboard PCB HE hall effect](https://github.com/ci-bus/Miguelio-Magnetic-Viking/blob/master/documentation/pcb.png)
 
@@ -18,3 +20,10 @@ Teclado mecánico 60% PCB HE magnética con sensores hall effect
 [Wiki Español](https://github.com/ci-bus/Miguelio-Magnetic-Viking/wiki/Espa%C3%B1ol)
 
 [Wiki English](https://github.com/ci-bus/Miguelio-Magnetic-Viking/wiki/English)
+
+Learn more about us at:
+
+[Miguelio Keyboards](https://www.miguelio.com/)
+
+[Siberia Case Wood](https://www.siberiacasewood.com/)
+
