@@ -21,6 +21,8 @@ Mechanical keyboard 60% magnetic HE PCB with hall effect sensors
 
 [Wiki English](https://github.com/ci-bus/Miguelio-Magnetic-Viking/wiki/English)
 
+![Mechanical keyboard PCB HE hall effect](https://github.com/ci-bus/Miguelio-Magnetic-Viking/blob/master/documentation/casepcbimg.jpg)
+
 Learn more about us at:
 
 [Miguelio Keyboards](https://www.miguelio.com/)
