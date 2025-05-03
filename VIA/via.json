@@ -195,11 +195,10 @@
                             "type": "dropdown",
                             "options": [
                                 ["LINEAL", 0],
-                                ["CURVE 1", 15],
-                                ["CURVE 2", 20],
-                                ["CURVE 3", 25],
-                                ["CURVE 4", 30],
-                                ["CURVE 5", 50]
+                                ["CURVE 1", 1],
+                                ["CURVE 2", 2],
+                                ["CURVE 3", 3],
+                                ["CURVE 4", 4]
                             ],
                             "content": ["id_hall_curve", 0, 5]
                         },
