@@ -48,7 +48,7 @@ enum via_custom_value_id {
     id_layout_reset_keymap,        // Reset keymaps to default
     id_hall_threshold,             // Threshold point
     id_hall_fast_trigger,          // Fast release and press again
-    id_layout_1_color              // RGB color when layout 1 is active
+    id_hall_curve_response         // Hall sensor curve response
 };
 // clang-format on
 

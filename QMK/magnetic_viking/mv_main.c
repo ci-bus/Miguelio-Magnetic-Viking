@@ -29,6 +29,7 @@ static uint8_t      hall_release                                        = HALL_D
 static bool         calibrating                                         = false;
 static bool         fast_trigger                                        = false;
 static uint8_t      current_layer                                       = 0;
+static uint8_t      curve_response                                      = 0;
 #ifdef MIDI_ENABLE
 static uint16_t     midi_note_key[MATRIX_ROWS * MATRIX_COLS]      = {0};
 static matrix_row_t midi_note_on[MATRIX_ROWS]                     = {0};
@@ -288,17 +289,55 @@ void get_configuration_calibrating(void) {
     }
 }
 
+// 1: 0.003x^2 + 0.7x
+// 2: 0.0065x^2 + 0.35x
+// 3: 0.0098x^2 + 2
+// 4: -0.22x\ +\ 0.012x^{2}+3
+
+void update_curve_hall_threshold(void) {
+    switch (curve_response) {
+        case 1:
+            hall_threshold = (0.003 * pow(hall_threshold, 2)) + (0.7 * hall_threshold);
+            break;
+        case 2:
+            hall_threshold = (0.0065 * pow(hall_threshold, 2)) + (0.35 * hall_threshold);
+            break;
+        case 3:
+            hall_threshold = (0.0098 * pow(hall_threshold, 2)) + 2;
+            break;
+        case 4:
+            hall_threshold = (-0.22 * hall_threshold) + (0.012 * pow(hall_threshold, 2)) + 3;
+            break;
+    }
+    if (hall_threshold < HALL_DEFAULT_THRESHOLD_MIN || hall_threshold > HALL_DEFAULT_THRESHOLD_MAX) {
+        hall_threshold = HALL_DEFAULT_THRESHOLD;
+    }
+}
+
 void get_configuration_hall_threshold(void) {
     hall_threshold = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold);
     if (hall_threshold < HALL_DEFAULT_THRESHOLD_MIN || hall_threshold > HALL_DEFAULT_THRESHOLD_MAX) {
         hall_threshold = HALL_DEFAULT_THRESHOLD;
         eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold, hall_threshold);
     }
+#ifdef CONSOLE_ENABLE
+    uprintf("Threshold: %u\n", hall_threshold);
+#endif
+    update_curve_hall_threshold();
+#ifdef CONSOLE_ENABLE
+    uprintf("Threshold with curve update: %u\n", hall_threshold);
+#endif
     hall_release = hall_threshold - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
 }
 
 void get_configuration_fast_trigger(void) {
     fast_trigger = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_fast_trigger) == 1);
+}
+
+void get_configuration_curve_response(void) {
+    curve_response = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve_response));
+    // Update threshold and release points
+    get_configuration_hall_threshold();
 }
 
 void get_configurations(void) {
@@ -308,6 +347,8 @@ void get_configurations(void) {
     matrix_hall_get_range();
     // Calibrating
     get_configuration_calibrating();
+    // Curve response
+    get_configuration_curve_response();
     // Threshold and release points
     get_configuration_hall_threshold();
     // Fast trigger
@@ -379,6 +420,7 @@ uint8_t matrix_scan_keyboard(void) {
             uint8_t  index     = (row * MATRIX_COLS) + col;
             uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
             uint8_t  percent   = 0;
+
             if (temp_diff > HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
                 // Calcule percent pressed
                 percent = temp_diff * 100 / matrix_hall_range[index];
@@ -542,6 +584,9 @@ void custom_set_value(uint8_t *data) {
             break;
         case id_hall_threshold:
             get_configuration_hall_threshold();
+            break;
+        case id_hall_curve_response:
+            get_configuration_curve_response();
             break;
     }
 }
