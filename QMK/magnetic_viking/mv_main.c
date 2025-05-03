@@ -292,26 +292,31 @@ void get_configuration_calibrating(void) {
 // 1: 0.003x^2 + 0.7x
 // 2: 0.0065x^2 + 0.35x
 // 3: 0.0098x^2 + 2
-// 4: -0.22x\ +\ 0.012x^{2}+3
-
+// 4: -0.22x + 0.012x^2 + 3
 void update_curve_hall_threshold(void) {
+    int temp_threshold = hall_threshold;
     switch (curve_response) {
         case 1:
-            hall_threshold = (0.003 * pow(hall_threshold, 2)) + (0.7 * hall_threshold);
+            temp_threshold = (0.003 * pow(hall_threshold, 2)) + (0.7 * hall_threshold);
             break;
         case 2:
-            hall_threshold = (0.0065 * pow(hall_threshold, 2)) + (0.35 * hall_threshold);
+            temp_threshold = (0.0065 * pow(hall_threshold, 2)) + (0.35 * hall_threshold);
             break;
         case 3:
-            hall_threshold = (0.0098 * pow(hall_threshold, 2)) + 2;
+            temp_threshold = (0.0098 * pow(hall_threshold, 2)) + 2;
             break;
         case 4:
-            hall_threshold = (-0.22 * hall_threshold) + (0.012 * pow(hall_threshold, 2)) + 3;
+            temp_threshold = (-0.22 * hall_threshold) + (0.012 * pow(hall_threshold, 2)) + 3;
             break;
     }
-    if (hall_threshold < HALL_DEFAULT_THRESHOLD_MIN || hall_threshold > HALL_DEFAULT_THRESHOLD_MAX) {
-        hall_threshold = HALL_DEFAULT_THRESHOLD;
+    // Threshold limits
+    if (temp_threshold < HALL_DEFAULT_THRESHOLD_MIN) {
+        temp_threshold = HALL_DEFAULT_THRESHOLD_MIN;
     }
+    if (temp_threshold > HALL_DEFAULT_THRESHOLD_MAX) {
+        temp_threshold = HALL_DEFAULT_THRESHOLD_MAX;
+    }
+    hall_threshold = temp_threshold;
 }
 
 void get_configuration_hall_threshold(void) {
@@ -325,9 +330,12 @@ void get_configuration_hall_threshold(void) {
 #endif
     update_curve_hall_threshold();
 #ifdef CONSOLE_ENABLE
-    uprintf("Threshold with curve update: %u\n", hall_threshold);
+    uprintf("Threshold with curve updated: %u\n", hall_threshold);
 #endif
     hall_release = hall_threshold - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
+    if (hall_release < HALL_DEFAULT_PRESS_RELEASE_MIN) {
+        hall_release = HALL_DEFAULT_PRESS_RELEASE_MIN;
+    }
 }
 
 void get_configuration_fast_trigger(void) {

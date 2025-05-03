@@ -23,9 +23,10 @@ enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 #define HALL_MAX_RANGE 512                  // Max analog value from base
 #define HALL_WAIT_US 50                     // Wait to change column active
 #define HALL_DEFAULT_THRESHOLD 50           // Threshold trigger value in percent
-#define HALL_DEFAULT_THRESHOLD_MIN 10       // Min threshold trigger value in percent
+#define HALL_DEFAULT_THRESHOLD_MIN 5        // Min threshold trigger value in percent
 #define HALL_DEFAULT_THRESHOLD_MAX 90       // Max threshold trigger value in percent
 #define HALL_DEFAULT_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+#define HALL_DEFAULT_PRESS_RELEASE_MIN 3    // Min threshold to release point percent
 
 // If ESC key is pressed on init it jump to bootloader
 #ifdef BOOTMAGIC_ENABLE
