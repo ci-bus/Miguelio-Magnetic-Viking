@@ -293,7 +293,7 @@ void get_configuration_calibrating(void) {
 // 2: 0.0065x^2 + 0.35x
 // 3: 0.0098x^2 + 2
 // 4: -0.22x + 0.012x^2 + 3
-void update_curve_hall_threshold(void) {
+void update_hall_threshold_curve(void) {
     int temp_threshold = hall_threshold;
     switch (curve_response) {
         case 1:
@@ -328,14 +328,11 @@ void get_configuration_hall_threshold(void) {
 #ifdef CONSOLE_ENABLE
     uprintf("Threshold: %u\n", hall_threshold);
 #endif
-    update_curve_hall_threshold();
+    update_hall_threshold_curve();
 #ifdef CONSOLE_ENABLE
     uprintf("Threshold with curve updated: %u\n", hall_threshold);
 #endif
     hall_release = hall_threshold - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
-    if (hall_release < HALL_DEFAULT_PRESS_RELEASE_MIN) {
-        hall_release = HALL_DEFAULT_PRESS_RELEASE_MIN;
-    }
 }
 
 void get_configuration_fast_trigger(void) {
