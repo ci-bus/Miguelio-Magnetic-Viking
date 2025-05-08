@@ -17,8 +17,8 @@
 enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 
 // Hall sensor configs
-#define HALL_GET_BASE_ROUNDS 50             // Rounds to get base value
-#define HALL_MIN_BASE 200                   // Min base value
+#define HALL_GET_BASE_ROUNDS 100            // Rounds to get base value
+#define HALL_MIN_BASE 256                   // Min base value
 #define HALL_MIN_RANGE 50                   // Min analog value from base
 #define HALL_MAX_RANGE 512                  // Max analog value from base
 #define HALL_WAIT_US 50                     // Wait to change column active

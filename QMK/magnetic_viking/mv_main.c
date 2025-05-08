@@ -245,8 +245,7 @@ void matrix_hall_get_base(void) {
             gpio_write_pin_low(col_pins[col]);
             wait_us(HALL_WAIT_US);
             for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                uint16_t raw_value                          = analogReadPin(row_pins[row]);
-                matrix_hall_base[(row * MATRIX_COLS) + col] = raw_value > HALL_MIN_BASE ? raw_value : HALL_MIN_BASE;
+                matrix_hall_base[(row * MATRIX_COLS) + col] = analogReadPin(row_pins[row]);
             }
             gpio_write_pin_high(col_pins[col]);
         }
@@ -341,8 +340,6 @@ void get_configuration_fast_trigger(void) {
 
 void get_configuration_curve_response(void) {
     curve_response = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve_response));
-    // Update threshold and release points
-    get_configuration_hall_threshold();
 }
 
 void get_configurations(void) {
@@ -421,17 +418,17 @@ uint8_t matrix_scan_keyboard(void) {
         wait_us(HALL_WAIT_US);
 
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            uint8_t index = (row * MATRIX_COLS) + col;
+            // Skipping missing sensors
+            if (matrix_hall_base[index] < HALL_MIN_BASE) {
+                continue;
+            }
             uint16_t raw_value = analogReadPin(row_pins[row]);
-            uint8_t  index     = (row * MATRIX_COLS) + col;
             uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
-            uint8_t  percent   = 0;
-
-            if (temp_diff > HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
-                // Calcule percent pressed
-                percent = temp_diff * 100 / matrix_hall_range[index];
-                if (percent > 100) {
-                    percent = 100;
-                }
+            // Calcule percent pressed
+            uint8_t percent = temp_diff * 100 / matrix_hall_range[index];
+            if (percent > 100) {
+                percent = 100;
             }
 #ifdef MIDI_ENABLE
             if (midi_note_key[index] > 0) {
@@ -592,6 +589,8 @@ void custom_set_value(uint8_t *data) {
             break;
         case id_hall_curve_response:
             get_configuration_curve_response();
+            // Update threshold and release points
+            get_configuration_hall_threshold();
             break;
     }
 }

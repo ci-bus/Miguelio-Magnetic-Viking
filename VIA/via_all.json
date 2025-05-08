@@ -1,0 +1,439 @@
+{
+  "name": "Magnetic Viking",
+  "vendorId": "0x4D47",
+  "productId": "0x0012",
+  "matrix": {
+    "rows": 4,
+    "cols": 17
+  },
+  "layouts": {
+    "labels": [
+      "Split Backspace",
+      "ISO Enter",
+      "Split Left Shift",
+      "Split Right Shift",
+      "7U Spacebar"
+    ],
+    "keymap": [
+      [
+        {
+          "x": 2.5,
+          "c": "#777777"
+        },
+        "0,0",
+        {
+          "c": "#cccccc"
+        },
+        "0,1",
+        "0,2",
+        "0,3",
+        "0,4",
+        "0,5",
+        "0,6",
+        "0,7",
+        "0,8",
+        "0,9",
+        "0,10",
+        "0,11",
+        "0,12",
+        {
+          "c": "#aaaaaa",
+          "w": 2
+        },
+        "0,14\n\n\n0,0",
+        {
+          "x": 0.5,
+          "c": "#cccccc"
+        },
+        "0,13\n\n\n0,1",
+        "0,14\n\n\n0,1"
+      ],
+      [
+        {
+          "x": 2.5,
+          "c": "#aaaaaa",
+          "w": 1.5
+        },
+        "1,0",
+        {
+          "c": "#cccccc"
+        },
+        "1,1",
+        "1,2",
+        "1,3",
+        "1,4",
+        "1,5",
+        "1,6",
+        "1,7",
+        "1,8",
+        "1,9",
+        "1,10",
+        "1,11",
+        "1,12",
+        {
+          "c": "#aaaaaa",
+          "w": 1.5
+        },
+        "1,14\n\n\n1,0",
+        {
+          "x": 1.25,
+          "c": "#777777",
+          "w": 1.25,
+          "h": 2,
+          "w2": 1.5,
+          "h2": 1,
+          "x2": -0.25
+        },
+        "2,14\n\n\n1,1"
+      ],
+      [
+        {
+          "x": 2.5,
+          "c": "#aaaaaa",
+          "w": 1.75
+        },
+        "2,0",
+        {
+          "c": "#cccccc"
+        },
+        "2,1",
+        "2,2",
+        "2,3",
+        "2,4",
+        "2,5",
+        "2,6",
+        "2,7",
+        "2,8",
+        "2,9",
+        "2,10",
+        "2,11",
+        {
+          "c": "#777777",
+          "w": 2.25
+        },
+        "2,13\n\n\n1,0",
+        {
+          "x": 0.25,
+          "c": "#cccccc"
+        },
+        "2,12\n\n\n1,1"
+      ],
+      [
+        {
+          "c": "#aaaaaa",
+          "w": 1.25
+        },
+        "3,0\n\n\n2,1",
+        {
+          "c": "#cccccc"
+        },
+        "3,1\n\n\n2,1",
+        {
+          "x": 0.25,
+          "c": "#aaaaaa",
+          "w": 2.25
+        },
+        "3,0\n\n\n2,0",
+        {
+          "c": "#cccccc"
+        },
+        "3,2",
+        "3,3",
+        "3,4",
+        "3,5",
+        "3,6",
+        "3,7",
+        "3,8",
+        "3,9",
+        "3,10",
+        "3,11",
+        {
+          "c": "#aaaaaa",
+          "w": 2.75
+        },
+        "3,12\n\n\n3,0",
+        {
+          "x": 0.25,
+          "w": 1.75
+        },
+        "3,12\n\n\n3,1",
+        "3,14\n\n\n3,1"
+      ],
+      [
+        {
+          "x": 2.5,
+          "w": 1.25
+        },
+        "0,15\n\n\n4,0",
+        {
+          "w": 1.25
+        },
+        "1,15\n\n\n4,0",
+        {
+          "w": 1.25
+        },
+        "2,15\n\n\n4,0",
+        {
+          "c": "#777777",
+          "w": 6.25
+        },
+        "3,15\n\n\n4,0",
+        {
+          "c": "#aaaaaa",
+          "w": 1.25
+        },
+        "3,16\n\n\n4,0",
+        {
+          "w": 1.25
+        },
+        "2,16\n\n\n4,0",
+        {
+          "w": 1.25
+        },
+        "1,16\n\n\n4,0",
+        {
+          "w": 1.25
+        },
+        "0,16\n\n\n4,0"
+      ],
+      [
+        {
+          "y": 0.25,
+          "x": 2.5,
+          "w": 1.5
+        },
+        "0,15\n\n\n4,1",
+        "1,15\n\n\n4,1",
+        {
+          "w": 1.5
+        },
+        "2,15\n\n\n4,1",
+        {
+          "c": "#777777",
+          "w": 7
+        },
+        "3,15\n\n\n4,1",
+        {
+          "c": "#aaaaaa",
+          "w": 1.5
+        },
+        "2,16\n\n\n4,1",
+        "1,16\n\n\n4,1",
+        {
+          "w": 1.5
+        },
+        "0,16\n\n\n4,1"
+      ]
+    ]
+  },
+  "menus": [
+    {
+      "label": "LIGHTING",
+      "content": [
+        {
+          "label": "CAPSLOCK",
+          "content": [
+            {
+              "label": "BRIGHTNESS",
+              "type": "range",
+              "options": [0, 255],
+              "content": ["id_qmk_rgblight_brightness", 2, 1]
+            },
+            {
+              "label": "EFFECT",
+              "type": "dropdown",
+              "content": ["id_qmk_rgblight_effect", 2, 2],
+              "options": [
+                "All Off",
+                "Solid Color",
+                "Breathing 1",
+                "Breathing 2",
+                "Breathing 3",
+                "Breathing 4",
+                "Rainbow Mood 1",
+                "Rainbow Mood 2",
+                "Rainbow Mood 3",
+                "Rainbow Swirl 1",
+                "Rainbow Swirl 2",
+                "Rainbow Swirl 3",
+                "Rainbow Swirl 4",
+                "Rainbow Swirl 5",
+                "Rainbow Swirl 6",
+                "Snake 1",
+                "Snake 2",
+                "Snake 3",
+                "Snake 4",
+                "Snake 5",
+                "Snake 6",
+                "Knight 1",
+                "Knight 2",
+                "Knight 3",
+                "Christmas",
+                "Gradient 1",
+                "Gradient 2",
+                "Gradient 3",
+                "Gradient 4",
+                "Gradient 5",
+                "Gradient 6",
+                "Gradient 7",
+                "Gradient 8",
+                "Gradient 9",
+                "Gradient 10",
+                "RGB Test",
+                "Alternating",
+                "Twinkle 1",
+                "Twinkle 2",
+                "Twinkle 3",
+                "Twinkle 4",
+                "Twinkle 5",
+                "Twinkle 6"
+              ]
+            },
+            {
+              "showIf": "{id_qmk_rgblight_effect} != 0",
+              "label": "Effect Speed",
+              "type": "range",
+              "options": [0, 255],
+              "content": ["id_qmk_rgblight_effect_speed", 2, 3]
+            },
+            {
+              "showIf": "{id_qmk_rgblight_effect} != 0 && {id_qmk_rgblight_effect} != 35",
+              "label": "Color",
+              "type": "color",
+              "content": ["id_qmk_rgblight_color", 2, 4]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "PCB CONFIG",
+      "content": [
+        {
+          "label": "HALL SENSORS",
+          "content": [
+            {
+              "label": "THRESHOLD",
+              "type": "range",
+              "options": [10, 90],
+              "content": ["id_hall_threshold", 0, 3]
+            },
+						{ "showIf": "{id_hall_threshold} == 10", "label": "10%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 11", "label": "11%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 12", "label": "12%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 13", "label": "13%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 14", "label": "14%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 15", "label": "15%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 16", "label": "16%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 17", "label": "17%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 18", "label": "18%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 19", "label": "19%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 20", "label": "20%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 21", "label": "21%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 22", "label": "22%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 23", "label": "23%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 24", "label": "24%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 25", "label": "25%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 26", "label": "26%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 27", "label": "27%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 28", "label": "28%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 29", "label": "29%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 30", "label": "30%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 31", "label": "31%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 32", "label": "32%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 33", "label": "33%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 34", "label": "34%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 35", "label": "35%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 36", "label": "36%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 37", "label": "37%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 38", "label": "38%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 39", "label": "39%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 40", "label": "40%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 41", "label": "41%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 42", "label": "42%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 43", "label": "43%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 44", "label": "44%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 45", "label": "45%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 46", "label": "46%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 47", "label": "47%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 48", "label": "48%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 49", "label": "49%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 50", "label": "50%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 51", "label": "51%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 52", "label": "52%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 53", "label": "53%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 54", "label": "54%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 55", "label": "55%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 56", "label": "56%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 57", "label": "57%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 58", "label": "58%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 59", "label": "59%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 60", "label": "60%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 61", "label": "61%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 62", "label": "62%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 63", "label": "63%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 64", "label": "64%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 65", "label": "65%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 66", "label": "66%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 67", "label": "67%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 68", "label": "68%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 69", "label": "69%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 70", "label": "70%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 71", "label": "71%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 72", "label": "72%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 73", "label": "73%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 74", "label": "74%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 75", "label": "75%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 76", "label": "76%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 77", "label": "77%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 78", "label": "78%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 79", "label": "79%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 80", "label": "80%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 81", "label": "81%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 82", "label": "82%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 83", "label": "83%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 84", "label": "84%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 85", "label": "85%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 86", "label": "86%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 87", "label": "87%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 88", "label": "88%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 89", "label": "89%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+						{ "showIf": "{id_hall_threshold} == 90", "label": "90%", "type": "button", "options": [0, 0], "content": ["", 0, 0] },
+            {
+              "label": "FAST TRIGGER",
+              "type": "toggle",
+              "content": ["id_hall_fast_trigger", 0, 4]
+            },
+            {
+              "label": "RESPONSE CURVE",
+              "type": "dropdown",
+              "options": [
+                ["LINEAL", 0],
+                ["CURVE 1", 1],
+                ["CURVE 2", 2],
+                ["CURVE 3", 3],
+                ["CURVE 4", 4]
+              ],
+              "content": ["id_hall_curve", 0, 5]
+            },
+            {
+              "label": "CALIBRATE",
+              "type": "toggle",
+              "content": ["id_hall_sensors_calibrate", 0, 1]
+            }
+          ]
+        },
+        {
+          "label": "LAYOUT",
+          "content": [
+            {
+              "label": "RESET KEYMAP",
+              "type": "toggle",
+              "content": ["id_layout_reset_keymap", 0, 2]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
