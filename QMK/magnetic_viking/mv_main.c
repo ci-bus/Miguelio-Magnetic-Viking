@@ -25,11 +25,12 @@ static uint16_t     matrix_hall_fast_trigger[MATRIX_ROWS * MATRIX_COLS] = {0};
 static pin_t        row_pins[MATRIX_ROWS]                               = MATRIX_ROW_PINS;
 static pin_t        col_pins[MATRIX_COLS]                               = MATRIX_COL_PINS;
 static uint8_t      hall_threshold                                      = HALL_DEFAULT_THRESHOLD;
-static uint8_t      hall_release                                        = HALL_DEFAULT_THRESHOLD - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
+static uint8_t      hall_release                                        = HALL_DEFAULT_THRESHOLD - HALL_PRESS_RELEASE_MARGIN;
 static bool         calibrating                                         = false;
 static bool         fast_trigger                                        = false;
 static uint8_t      current_layer                                       = 0;
 static uint8_t      curve_response                                      = 0;
+uint8_t             curve_table[101]                                    = {0};
 #ifdef MIDI_ENABLE
 static uint16_t     midi_note_key[MATRIX_ROWS * MATRIX_COLS]      = {0};
 static matrix_row_t midi_note_on[MATRIX_ROWS]                     = {0};
@@ -97,7 +98,7 @@ void matrix_scan_joystick(void) {
             uint8_t  index      = (row * MATRIX_COLS) + col;
             uint16_t temp_diff  = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
             uint8_t  axis_value = 0;
-            if (temp_diff > HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+            if (temp_diff > HALL_PRESS_RELEASE_MARGIN) {
                 axis_value = temp_diff * 127 / matrix_hall_range[index];
                 if (axis_value > 127) {
                     axis_value = 127;
@@ -121,10 +122,12 @@ void matrix_scan_joystick(void) {
                 if (percent > 100) {
                     percent = 100;
                 }
+                // Get curved value
+                percent = curve_table[percent];
                 if (joystick_state.buttons[jt_button_index / 8] & (1 << (jt_button_index % 8))) {
                     // Check released
                     if (fast_trigger) {
-                        if (percent < matrix_hall_fast_trigger[index] - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+                        if (percent < matrix_hall_fast_trigger[index] - HALL_PRESS_RELEASE_MARGIN) {
                             matrix[row] &= ~(1 << col);
                             joystick_state.buttons[jt_button_index / 8] &= ~(1 << (jt_button_index % 8));
                             joystick_state.dirty            = true;
@@ -145,7 +148,7 @@ void matrix_scan_joystick(void) {
                 } else {
                     // Check press
                     if (fast_trigger) {
-                        if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+                        if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_PRESS_RELEASE_MARGIN) {
                             joystick_state.buttons[jt_button_index / 8] |= 1 << (jt_button_index % 8);
                             joystick_state.dirty            = true;
                             matrix_hall_fast_trigger[index] = percent;
@@ -289,49 +292,59 @@ void get_configuration_calibrating(void) {
 }
 
 // 1: 0.003x^2 + 0.7x
-// 2: 0.0065x^2 + 0.35x
-// 3: 0.0098x^2 + 2
-// 4: -0.22x + 0.012x^2 + 3
-void update_hall_threshold_curve(void) {
-    int temp_threshold = hall_threshold;
+// 2: 0.006x^2 + 0.4x
+// 3: 0.0085x^2 + 0.15x
+// 4: 0.01x^2
+void create_table_curve_response(void) {
     switch (curve_response) {
         case 1:
-            temp_threshold = (0.003 * pow(hall_threshold, 2)) + (0.7 * hall_threshold);
+            for (int x = 0; x <= 100; x++) {
+                curve_table[x] = (sqrt(0.012 * x + 0.49) - 0.7) / 0.006;
+            }
             break;
         case 2:
-            temp_threshold = (0.0065 * pow(hall_threshold, 2)) + (0.35 * hall_threshold);
+            for (int x = 0; x <= 100; x++) {
+                curve_table[x] = (sqrt(0.024 * x + 0.16) - 0.4) / 0.012;
+            }
             break;
         case 3:
-            temp_threshold = (0.0098 * pow(hall_threshold, 2)) + 2;
+            for (int x = 0; x <= 100; x++) {
+                curve_table[x] = (sqrt(0.034 * x + 0.0225) - 0.15) / 0.017;
+            }
             break;
         case 4:
-            temp_threshold = (-0.22 * hall_threshold) + (0.012 * pow(hall_threshold, 2)) + 3;
+            // First safe values
+            curve_table[0] = 0;
+            curve_table[1] = 5;
+            curve_table[2] = 10;
+            for (int x = 3; x <= 100; x++) {
+                curve_table[x] = 10 * sqrt(x);
+            }
+            break;
+        default:
+            for (int x = 0; x <= 100; x++) {
+                curve_table[x] = x;
+            }
             break;
     }
-    // Threshold limits
-    if (temp_threshold < HALL_DEFAULT_THRESHOLD_MIN) {
-        temp_threshold = HALL_DEFAULT_THRESHOLD_MIN;
+    for (int x = 0; x <= 100; x++) {
+#ifdef CONSOLE_ENABLE
+        uprintf("Curve value: %u => %u\n", x, curve_table[x]);
+#endif
     }
-    if (temp_threshold > HALL_DEFAULT_THRESHOLD_MAX) {
-        temp_threshold = HALL_DEFAULT_THRESHOLD_MAX;
-    }
-    hall_threshold = temp_threshold;
 }
 
 void get_configuration_hall_threshold(void) {
     hall_threshold = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold);
-    if (hall_threshold < HALL_DEFAULT_THRESHOLD_MIN || hall_threshold > HALL_DEFAULT_THRESHOLD_MAX) {
+    hall_threshold = hall_threshold * (100 - HALL_THRESHOLD_MARGIN * 2) / 100 + HALL_THRESHOLD_MARGIN;
+    if (hall_threshold < HALL_THRESHOLD_MARGIN || hall_threshold > (100 - HALL_THRESHOLD_MARGIN)) {
         hall_threshold = HALL_DEFAULT_THRESHOLD;
         eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold, hall_threshold);
     }
 #ifdef CONSOLE_ENABLE
     uprintf("Threshold: %u\n", hall_threshold);
 #endif
-    update_hall_threshold_curve();
-#ifdef CONSOLE_ENABLE
-    uprintf("Threshold with curve updated: %u\n", hall_threshold);
-#endif
-    hall_release = hall_threshold - HALL_DEFAULT_PRESS_RELEASE_MARGIN;
+    hall_release = hall_threshold - HALL_PRESS_RELEASE_MARGIN;
 }
 
 void get_configuration_fast_trigger(void) {
@@ -340,6 +353,8 @@ void get_configuration_fast_trigger(void) {
 
 void get_configuration_curve_response(void) {
     curve_response = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve_response));
+    // To performance calcule curve response
+    create_table_curve_response();
 }
 
 void get_configurations(void) {
@@ -368,7 +383,7 @@ void matrix_init(void) {
     }
     get_configurations();
     matrix_init_kb();
-    wait_ms(1000);
+    wait_ms(HALL_INIT_TIMEOUT);
 }
 
 #ifdef MIDI_ENABLE
@@ -377,7 +392,7 @@ void matrix_scan_midi(uint8_t index, uint8_t row, uint8_t col, uint8_t percent, 
     uint8_t velocity  = 0;
     if ((midi_note_on[row] & (1 << col))) {
         // Release
-        if (percent < HALL_MIDI_THRESHOLD - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+        if (percent < HALL_MIDI_THRESHOLD - HALL_PRESS_RELEASE_MARGIN) {
             midi_send_noteoff(&midi_device, midi_config.channel, midi_note, velocity);
             midi_note_on[row] &= ~(1 << col);
 #    ifdef CONSOLE_ENABLE
@@ -386,7 +401,7 @@ void matrix_scan_midi(uint8_t index, uint8_t row, uint8_t col, uint8_t percent, 
         }
     } else {
         // Midi calcule velocity
-        if (percent > HALL_DEFAULT_THRESHOLD_MIN && midi_last_percent[index] <= HALL_DEFAULT_THRESHOLD_MIN) {
+        if (percent > HALL_THRESHOLD_MARGIN && midi_last_percent[index] <= HALL_THRESHOLD_MARGIN) {
             midi_velocity_time[index] = time;
         }
         // Press
@@ -430,6 +445,8 @@ uint8_t matrix_scan_keyboard(void) {
             if (percent > 100) {
                 percent = 100;
             }
+            // Get curved value
+            percent = curve_table[percent];
 #ifdef MIDI_ENABLE
             if (midi_note_key[index] > 0) {
                 matrix_scan_midi(index, row, col, percent, time);
@@ -439,7 +456,7 @@ uint8_t matrix_scan_keyboard(void) {
             if (matrix[row] & (1 << col)) {
                 // Check released
                 if (fast_trigger) {
-                    if (percent < matrix_hall_fast_trigger[index] - HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+                    if (percent < matrix_hall_fast_trigger[index] - HALL_FAST_RELEASE_MARGIN) {
                         matrix[row] &= ~(1 << col);
                         changed                         = true;
                         matrix_hall_fast_trigger[index] = percent;
@@ -459,7 +476,7 @@ uint8_t matrix_scan_keyboard(void) {
             } else {
                 // Check press
                 if (fast_trigger) {
-                    if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_DEFAULT_PRESS_RELEASE_MARGIN) {
+                    if (percent > hall_threshold && percent > matrix_hall_fast_trigger[index] + HALL_FAST_RELEASE_MARGIN) {
                         matrix[row] |= (1 << col);
                         changed                         = true;
                         matrix_hall_fast_trigger[index] = percent;
@@ -589,8 +606,6 @@ void custom_set_value(uint8_t *data) {
             break;
         case id_hall_curve_response:
             get_configuration_curve_response();
-            // Update threshold and release points
-            get_configuration_hall_threshold();
             break;
     }
 }

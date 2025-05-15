@@ -17,20 +17,21 @@
 enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 
 // Hall sensor configs
-#define HALL_GET_BASE_ROUNDS 100            // Rounds to get base value
-#define HALL_MIN_BASE 256                   // Min base value
-#define HALL_MIN_RANGE 50                   // Min analog value from base
-#define HALL_MAX_RANGE 512                  // Max analog value from base
-#define HALL_WAIT_US 50                     // Wait to change column active
-#define HALL_DEFAULT_THRESHOLD 50           // Threshold trigger value in percent
-#define HALL_DEFAULT_THRESHOLD_MIN 10       // Min threshold trigger value in percent
-#define HALL_DEFAULT_THRESHOLD_MAX 90       // Max threshold trigger value in percent
-#define HALL_DEFAULT_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+#define HALL_INIT_TIMEOUT 200       // Timeout after init
+#define HALL_GET_BASE_ROUNDS 200    // Rounds to get base value
+#define HALL_MIN_BASE 256           // Min base value
+#define HALL_MIN_RANGE 60           // Min analog value from base
+#define HALL_MAX_RANGE 512          // Max analog value from base
+#define HALL_WAIT_US 50             // Wait to change column active
+#define HALL_DEFAULT_THRESHOLD 50   // Threshold trigger value in percent
+#define HALL_THRESHOLD_MARGIN 10    // Margin threshold in percent
+#define HALL_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+#define HALL_FAST_RELEASE_MARGIN 10 // Margin fast release point percent
 
 // If ESC key is pressed on init it jump to bootloader
 #ifdef BOOTMAGIC_ENABLE
-#define HALL_BOOTMAGIC_JUMP_TOP_VALUE 600
-#define HALL_BOOTMAGIC_JUMP_BOTTOM_VALUE 300
+#    define HALL_BOOTMAGIC_JUMP_TOP_VALUE 600
+#    define HALL_BOOTMAGIC_JUMP_BOTTOM_VALUE 300
 #endif
 
 #ifdef MIDI_ENABLE
