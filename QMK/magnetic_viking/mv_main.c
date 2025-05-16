@@ -313,10 +313,6 @@ void create_table_curve_response(void) {
             }
             break;
         case 4:
-            // First safe values
-            curve_table[0] = 0;
-            curve_table[1] = 5;
-            curve_table[2] = 10;
             for (int x = 3; x <= 100; x++) {
                 curve_table[x] = 10 * sqrt(x);
             }
@@ -334,13 +330,25 @@ void create_table_curve_response(void) {
     }
 }
 
+void set_minimun_threshold(void) {
+    if (hall_threshold < curve_table[HALL_THRESHOLD_MARGIN]) {
+#ifdef CONSOLE_ENABLE
+    uprintf("Threshold min value changed: %u => %u\n", hall_threshold, curve_table[HALL_THRESHOLD_MARGIN]);
+#endif
+        hall_threshold = curve_table[HALL_THRESHOLD_MARGIN];
+    }
+}
+
 void get_configuration_hall_threshold(void) {
     hall_threshold = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold);
     hall_threshold = hall_threshold * (100 - HALL_THRESHOLD_MARGIN * 2) / 100 + HALL_THRESHOLD_MARGIN;
+    // Check limits to valid threshold
     if (hall_threshold < HALL_THRESHOLD_MARGIN || hall_threshold > (100 - HALL_THRESHOLD_MARGIN)) {
         hall_threshold = HALL_DEFAULT_THRESHOLD;
         eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold, hall_threshold);
     }
+    set_minimun_threshold();
+
 #ifdef CONSOLE_ENABLE
     uprintf("Threshold: %u\n", hall_threshold);
 #endif
@@ -352,9 +360,11 @@ void get_configuration_fast_trigger(void) {
 }
 
 void get_configuration_curve_response(void) {
-    curve_response = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve_response));
+    curve_response = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve_response);
     // To performance calcule curve response
     create_table_curve_response();
+    // Reset threshold
+    get_configuration_hall_threshold();
 }
 
 void get_configurations(void) {
@@ -383,7 +393,6 @@ void matrix_init(void) {
     }
     get_configurations();
     matrix_init_kb();
-    wait_ms(HALL_INIT_TIMEOUT);
 }
 
 #ifdef MIDI_ENABLE

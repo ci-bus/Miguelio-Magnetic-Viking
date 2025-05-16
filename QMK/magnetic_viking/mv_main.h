@@ -17,8 +17,7 @@
 enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 
 // Hall sensor configs
-#define HALL_INIT_TIMEOUT 200       // Timeout after init
-#define HALL_GET_BASE_ROUNDS 200    // Rounds to get base value
+#define HALL_GET_BASE_ROUNDS 50     // Rounds to get base value
 #define HALL_MIN_BASE 256           // Min base value
 #define HALL_MIN_RANGE 60           // Min analog value from base
 #define HALL_MAX_RANGE 512          // Max analog value from base
