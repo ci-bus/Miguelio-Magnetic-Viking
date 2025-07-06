@@ -1,0 +1,138 @@
+{
+    "keyboard_name": "Magnetic Viking",
+    "manufacturer": "Miguelio",
+    "maintainer": "qmk",
+    "processor": "RP2040",
+    "bootloader": "rp2040",
+    "url": "https://miguelio.com",
+    "usb": {
+        "vid": "0x4D47",
+        "pid": "0x0012",
+        "device_version": "0.0.1"
+    },
+    "features": {
+        "extrakey": true,
+        "rgblight": true
+    },
+    "rgblight": {
+        "led_count": 1,
+        "hue_steps": 5,
+        "saturation_steps": 5,
+        "brightness_steps": 5,
+        "max_brightness": 255,
+        "animations": {
+          "breathing": true,
+          "rainbow_mood": true,
+          "rainbow_swirl": true,
+          "snake": true,
+          "knight": true,
+          "christmas": true,
+          "static_gradient": true,
+          "rgb_test": true,
+          "alternating": true,
+          "twinkle": true
+        }
+    },
+    "diode_direction": "COL2ROW",
+    "matrix_pins": {
+        "cols": [
+            "GP18",
+            "GP19",
+            "GP20",
+            "GP21",
+            "GP22",
+            "GP23",
+            "GP24",
+            "GP25",
+            "GP0",
+            "GP1",
+            "GP2",
+            "GP3",
+            "GP4",
+            "GP5",
+            "GP6",
+            "GP12",
+            "GP11"
+        ],
+        "rows": ["GP26", "GP27", "GP28", "GP29"]
+    },
+    "layout_aliases": {
+        "LAYOUT": "LAYOUT_60_all"
+    },
+    "layouts": {
+        "LAYOUT_60_all": {
+            "layout": [
+                { "label": "esc", "matrix": [0, 0], "x": 0, "y": 0 },
+                { "label": "1", "matrix": [0, 1], "x": 1, "y": 0 },
+                { "label": "2", "matrix": [0, 2], "x": 2, "y": 0 },
+                { "label": "3", "matrix": [0, 3], "x": 3, "y": 0 },
+                { "label": "4", "matrix": [0, 4], "x": 4, "y": 0 },
+                { "label": "5", "matrix": [0, 5], "x": 5, "y": 0 },
+                { "label": "6", "matrix": [0, 6], "x": 6, "y": 0 },
+                { "label": "7", "matrix": [0, 7], "x": 7, "y": 0 },
+                { "label": "8", "matrix": [0, 8], "x": 8, "y": 0 },
+                { "label": "9", "matrix": [0, 9], "x": 9, "y": 0 },
+                { "label": "0", "matrix": [0, 10], "x": 10, "y": 0 },
+                { "label": "-", "matrix": [0, 11], "x": 11, "y": 0 },
+                { "label": "=", "matrix": [0, 12], "x": 12, "y": 0 },
+                { "label": "`", "matrix": [0, 13], "x": 13, "y": 0 },
+                { "label": "backspace", "matrix": [0, 14], "x": 14, "y": 0 },
+
+                { "label": "tab", "matrix": [1, 0], "x": 0, "y": 1, "w": 1.5 },
+                { "label": "q", "matrix": [1, 1], "x": 1.5, "y": 1 },
+                { "label": "w", "matrix": [1, 2], "x": 2.5, "y": 1 },
+                { "label": "e", "matrix": [1, 3], "x": 3.5, "y": 1 },
+                { "label": "r", "matrix": [1, 4], "x": 4.5, "y": 1 },
+                { "label": "t", "matrix": [1, 5], "x": 5.5, "y": 1 },
+                { "label": "y", "matrix": [1, 6], "x": 6.5, "y": 1 },
+                { "label": "u", "matrix": [1, 7], "x": 7.5, "y": 1 },
+                { "label": "i", "matrix": [1, 8], "x": 8.5, "y": 1 },
+                { "label": "o", "matrix": [1, 9], "x": 9.5, "y": 1 },
+                { "label": "p", "matrix": [1, 10], "x": 10.5, "y": 1 },
+                { "label": "[", "matrix": [1, 11], "x": 11.5, "y": 1 },
+                { "label": "]", "matrix": [1, 12], "x": 12.5, "y": 1 },
+                { "label": "\\", "matrix": [1, 14], "x": 13.5, "y": 1, "w": 1.5 },
+
+                { "label": "capslock", "matrix": [2, 0], "x": 0, "y": 2, "w": 1.75 },
+                { "label": "a", "matrix": [2, 1], "x": 1.75, "y": 2 },
+                { "label": "s", "matrix": [2, 2], "x": 2.75, "y": 2 },
+                { "label": "d", "matrix": [2, 3], "x": 3.75, "y": 2 },
+                { "label": "f", "matrix": [2, 4], "x": 4.75, "y": 2 },
+                { "label": "g", "matrix": [2, 5], "x": 5.75, "y": 2 },
+                { "label": "h", "matrix": [2, 6], "x": 6.75, "y": 2 },
+                { "label": "j", "matrix": [2, 7], "x": 7.75, "y": 2 },
+                { "label": "k", "matrix": [2, 8], "x": 8.75, "y": 2 },
+                { "label": "l", "matrix": [2, 9], "x": 9.75, "y": 2 },
+                { "label": ";", "matrix": [2, 10], "x": 10.75, "y": 2 },
+                { "label": "'", "matrix": [2, 11], "x": 11.75, "y": 2 },
+                { "label": "ñ", "matrix": [2, 12], "x": 12.75, "y": 2 },
+                { "label": "ent.ansi", "matrix": [2, 13], "x": 13.75, "y": 2, "w": 0.25 },
+                { "label": "ent.iso", "matrix": [2, 14], "x": 14, "y": 2 },
+
+                { "label": "shift", "matrix": [3, 0], "x": 0, "y": 3, "w": 1.25 },
+                { "label": "<>", "matrix": [3, 1], "x": 1.25, "y": 3 },
+                { "label": "z", "matrix": [3, 2], "x": 2.25, "y": 3 },
+                { "label": "x", "matrix": [3, 3], "x": 3.25, "y": 3 },
+                { "label": "c", "matrix": [3, 4], "x": 4.25, "y": 3 },
+                { "label": "v", "matrix": [3, 5], "x": 5.25, "y": 3 },
+                { "label": "b", "matrix": [3, 6], "x": 6.25, "y": 3 },
+                { "label": "n", "matrix": [3, 7], "x": 7.25, "y": 3 },
+                { "label": "m", "matrix": [3, 8], "x": 8.25, "y": 3 },
+                { "label": ",", "matrix": [3, 9], "x": 9.25, "y": 3 },
+                { "label": ".", "matrix": [3, 10], "x": 10.25, "y": 3 },
+                { "label": "/", "matrix": [3, 11], "x": 11.25, "y": 3 },
+                { "label": "shift", "matrix": [3, 12], "x": 12.25, "y": 3, "w": 1.75 },
+                { "label": "MO(1)", "matrix": [3, 14], "x": 14, "y": 3 },
+
+                { "label": "ctrl", "matrix": [0, 15], "x": 0, "y": 4, "w": 1.25 },
+                { "label": "win", "matrix": [1, 15], "x": 1.25, "y": 4, "w": 1.25 },
+                { "label": "alt", "matrix": [2, 15], "x": 2.5, "y": 4, "w": 1.25 },
+                { "label": "space", "matrix": [3, 15], "x": 3.75, "y": 4, "w": 6.25 },
+                { "label": "alt", "matrix": [3, 16], "x": 10, "y": 4, "w": 1.25 },
+                { "label": "alt", "matrix": [2, 16], "x": 11.25, "y": 4, "w": 1.25 },
+                { "label": "win", "matrix": [1, 16], "x": 12.5, "y": 4, "w": 1.25 },
+                { "label": "ctrl", "matrix": [0, 16], "x": 13.75, "y": 4, "w": 1.25 }
+            ]
+        }
+    }
+}
