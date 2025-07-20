@@ -29,14 +29,22 @@ static uint8_t      hall_release                                        = HALL_D
 static bool         calibrating                                         = false;
 static bool         fast_trigger                                        = false;
 static uint8_t      current_layer                                       = 0;
-static uint8_t      curve_response                                      = 0;
-uint8_t             curve_table[101]                                    = {0};
-#ifdef MIDI_ENABLE
-static uint16_t     midi_note_key[MATRIX_ROWS * MATRIX_COLS]      = {0};
-static matrix_row_t midi_note_on[MATRIX_ROWS]                     = {0};
-static uint8_t      midi_last_percent[MATRIX_ROWS * MATRIX_COLS]  = {0};
-static uint16_t     midi_velocity_time[MATRIX_ROWS * MATRIX_COLS] = {0};
-#endif
+static uint8_t curve_response   = 0;
+uint8_t        curve_table[101] = {0};
+
+// Replaceable functions
+__attribute__((weak)) void matrix_init_kb(void) {
+    matrix_init_user();
+}
+
+__attribute__((weak)) void matrix_scan_kb(void) {
+    matrix_scan_user();
+}
+
+__attribute__((weak)) void matrix_init_user(void) {}
+
+__attribute__((weak)) void matrix_scan_user(void) {}
+
 #ifdef JOYSTICK_ENABLE
 // clang-format off
 joystick_config_t joystick_axis[JOYSTICK_AXIS_COUNT] = {
@@ -180,6 +188,11 @@ void matrix_scan_joystick(void) {
 #endif
 
 #ifdef MIDI_ENABLE
+static uint16_t     midi_note_key[MATRIX_ROWS * MATRIX_COLS]      = {0};
+static matrix_row_t midi_note_on[MATRIX_ROWS]                     = {0};
+static uint8_t      midi_last_percent[MATRIX_ROWS * MATRIX_COLS]  = {0};
+static uint16_t     midi_velocity_time[MATRIX_ROWS * MATRIX_COLS] = {0};
+
 void init_midi(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
@@ -195,6 +208,41 @@ void init_midi(void) {
             }
         }
     }
+}
+
+void matrix_scan_   (uint8_t index, uint8_t row, uint8_t col, uint8_t percent, uint16_t time) {
+    uint8_t midi_note = midi_note_key[index] - QK_MIDI_NOTE_C_0 + ((midi_config.octave - 2) * 12);
+    uint8_t velocity  = 0;
+    if ((midi_note_on[row] & (1 << col))) {
+        // Release
+        if (percent < HALL_MIDI_THRESHOLD - HALL_PRESS_RELEASE_MARGIN) {
+            midi_send_noteoff(&midi_device, midi_config.channel, midi_note, velocity);
+            midi_note_on[row] &= ~(1 << col);
+#    ifdef CONSOLE_ENABLE
+            uprintf("Midi note: %u octave %u velocity: %u\n", midi_note, midi_config.octave, velocity);
+#    endif
+        }
+    } else {
+        // Midi calcule velocity
+        if (percent > HALL_THRESHOLD_MARGIN && midi_last_percent[index] <= HALL_THRESHOLD_MARGIN) {
+            midi_velocity_time[index] = time;
+        }
+        // Press
+        if (percent > HALL_MIDI_THRESHOLD) {
+            velocity = 127 - timer_elapsed(midi_velocity_time[index]) + HALL_MIDI_KEY_PRESS_ELAPSED;
+            if (velocity < 64) {
+                velocity = 64;
+            } else if (velocity > 127) {
+                velocity = 127;
+            }
+            midi_send_noteon(&midi_device, midi_config.channel, midi_note, velocity);
+            midi_note_on[row] |= (1 << col);
+#    ifdef CONSOLE_ENABLE
+            uprintf("Midi note: %u octave: %u velocity: %u\n", midi_note, midi_config.octave, velocity);
+#    endif
+        }
+    }
+    midi_last_percent[index] = percent;
 }
 #endif
 
@@ -228,10 +276,6 @@ bool led_update_kb(led_t led_state) {
         }
     }
     return res;
-}
-
-void keyboard_post_init_user(void) {
-    rgblight_disable_noeeprom();
 }
 
 matrix_row_t matrix_get_row(uint8_t row) {
@@ -277,17 +321,16 @@ void matrix_hall_reset_range(void) {
 }
 
 void get_configuration_calibrating(void) {
-    // 170(10101010) define first calibrate needed
-    calibrating = ((eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate) == 1) || (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG) != 170));
+    calibrating = (eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate) == 1);
     if (calibrating) {
         // Go to base layer
         layer_clear();
         // Reset range eeprom
         matrix_hall_reset_range();
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
         uprintf("Range reseted!\n");
         uprintf("Calibrating...\n");
-#endif
+#    endif
     }
 }
 
@@ -324,17 +367,17 @@ void create_table_curve_response(void) {
             break;
     }
     for (int x = 0; x <= 100; x++) {
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
         uprintf("Curve value: %u => %u\n", x, curve_table[x]);
-#endif
+#    endif
     }
 }
 
 void set_minimun_threshold(void) {
     if (hall_threshold < curve_table[HALL_THRESHOLD_MARGIN]) {
-#ifdef CONSOLE_ENABLE
-    uprintf("Threshold min value changed: %u => %u\n", hall_threshold, curve_table[HALL_THRESHOLD_MARGIN]);
-#endif
+#    ifdef CONSOLE_ENABLE
+        uprintf("Threshold min value changed: %u => %u\n", hall_threshold, curve_table[HALL_THRESHOLD_MARGIN]);
+#    endif
         hall_threshold = curve_table[HALL_THRESHOLD_MARGIN];
     }
 }
@@ -349,9 +392,9 @@ void get_configuration_hall_threshold(void) {
     }
     set_minimun_threshold();
 
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
     uprintf("Threshold: %u\n", hall_threshold);
-#endif
+#    endif
     hall_release = hall_threshold - HALL_PRESS_RELEASE_MARGIN;
 }
 
@@ -382,61 +425,37 @@ void get_configurations(void) {
     get_configuration_fast_trigger();
 }
 
-void matrix_init(void) {
+void keyboard_pre_init_kb(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         gpio_set_pin_output(col_pins[col]);
         gpio_write_pin_high(col_pins[col]);
+        wait_ms(5);
     }
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         gpio_set_pin_input(row_pins[row]);
         analogReadPin(row_pins[row]);
+        wait_ms(5);
     }
     get_configurations();
+}
+
+void matrix_init(void) {
     matrix_init_kb();
 }
 
-#ifdef MIDI_ENABLE
-void matrix_scan_midi(uint8_t index, uint8_t row, uint8_t col, uint8_t percent, uint16_t time) {
-    uint8_t midi_note = midi_note_key[index] - QK_MIDI_NOTE_C_0 + ((midi_config.octave - 2) * 12);
-    uint8_t velocity  = 0;
-    if ((midi_note_on[row] & (1 << col))) {
-        // Release
-        if (percent < HALL_MIDI_THRESHOLD - HALL_PRESS_RELEASE_MARGIN) {
-            midi_send_noteoff(&midi_device, midi_config.channel, midi_note, velocity);
-            midi_note_on[row] &= ~(1 << col);
+void keyboard_post_init_user(void) {
+    rgblight_disable_noeeprom();
 #    ifdef CONSOLE_ENABLE
-            uprintf("Midi note: %u octave %u velocity: %u\n", midi_note, midi_config.octave, velocity);
+    uprintf("Keyboard inited!");
 #    endif
-        }
-    } else {
-        // Midi calcule velocity
-        if (percent > HALL_THRESHOLD_MARGIN && midi_last_percent[index] <= HALL_THRESHOLD_MARGIN) {
-            midi_velocity_time[index] = time;
-        }
-        // Press
-        if (percent > HALL_MIDI_THRESHOLD) {
-            velocity = 127 - timer_elapsed(midi_velocity_time[index]) + HALL_MIDI_KEY_PRESS_ELAPSED;
-            if (velocity < 64) {
-                velocity = 64;
-            } else if (velocity > 127) {
-                velocity = 127;
-            }
-            midi_send_noteon(&midi_device, midi_config.channel, midi_note, velocity);
-            midi_note_on[row] |= (1 << col);
-#    ifdef CONSOLE_ENABLE
-            uprintf("Midi note: %u octave: %u velocity: %u\n", midi_note, midi_config.octave, velocity);
-#    endif
-        }
-    }
-    midi_last_percent[index] = percent;
 }
-#endif
 
 uint8_t matrix_scan_keyboard(void) {
     bool changed = false;
-#ifdef MIDI_ENABLE
+
+#    ifdef MIDI_ENABLE
     uint16_t time = timer_read();
-#endif
+#    endif
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         gpio_write_pin_low(col_pins[col]);
         wait_us(HALL_WAIT_US);
@@ -456,12 +475,12 @@ uint8_t matrix_scan_keyboard(void) {
             }
             // Get curved value
             percent = curve_table[percent];
-#ifdef MIDI_ENABLE
+#    ifdef MIDI_ENABLE
             if (midi_note_key[index] > 0) {
                 matrix_scan_midi(index, row, col, percent, time);
                 continue;
             }
-#endif
+#    endif
             if (matrix[row] & (1 << col)) {
                 // Check released
                 if (fast_trigger) {
@@ -469,18 +488,18 @@ uint8_t matrix_scan_keyboard(void) {
                         matrix[row] &= ~(1 << col);
                         changed                         = true;
                         matrix_hall_fast_trigger[index] = percent;
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                         uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
-#endif
+#    endif
                     } else if (percent > matrix_hall_fast_trigger[index]) {
                         matrix_hall_fast_trigger[index] = percent;
                     }
                 } else if (percent < hall_release) {
                     matrix[row] &= ~(1 << col);
                     changed = true;
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                     uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
-#endif
+#    endif
                 }
             } else {
                 // Check press
@@ -489,18 +508,18 @@ uint8_t matrix_scan_keyboard(void) {
                         matrix[row] |= (1 << col);
                         changed                         = true;
                         matrix_hall_fast_trigger[index] = percent;
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                         uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
-#endif
+#    endif
                     } else if (percent < matrix_hall_fast_trigger[index]) {
                         matrix_hall_fast_trigger[index] = percent;
                     }
                 } else if (percent > hall_threshold) {
                     matrix[row] |= (1 << col);
                     changed = true;
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                     uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
-#endif
+#    endif
                 }
             }
         }
@@ -522,9 +541,9 @@ void matrix_scan_calibrate(void) {
             // Update range
             if (temp_diff > matrix_hall_range[index]) {
                 matrix_hall_range[index] = temp_diff;
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                 uprintf("New col: %u row: %u range value: %u\n", col, row, matrix_hall_range[index]);
-#endif
+#    endif
             }
         }
         gpio_write_pin_high(col_pins[col]);
@@ -532,13 +551,13 @@ void matrix_scan_calibrate(void) {
 }
 
 uint8_t matrix_scan(void) {
-#ifdef JOYSTICK_ENABLE
+#    ifdef JOYSTICK_ENABLE
     // Joystick funcionality
     if (current_layer == _GAMING) {
         matrix_scan_joystick();
         return false;
     }
-#endif
+#    endif
     if (calibrating) {
         matrix_scan_calibrate();
         return false;
@@ -547,37 +566,14 @@ uint8_t matrix_scan(void) {
     return matrix_scan_keyboard();
 }
 
-void bootmagic_scan(void) {
-#ifdef BOOTMAGIC_ENABLE
-    if (matrix_hall_base[0] > HALL_BOOTMAGIC_JUMP_TOP_VALUE || matrix_hall_base[0] < HALL_BOOTMAGIC_JUMP_BOTTOM_VALUE) {
-        bootloader_jump();
-    }
-#endif
-}
-
-void matrix_init_kb(void) {
-    matrix_init_user();
-}
-
-void matrix_scan_kb(void) {
-    matrix_scan_user();
-}
-
-// user-defined overridable functions
-__attribute__((weak)) void matrix_init_user(void) {}
-
-__attribute__((weak)) void matrix_scan_user(void) {}
-
-__attribute__((weak)) void matrix_slave_scan_user(void) {}
-
 //[{ VIA }]//////////////////////////////////////////////////////////////////
 
 void custom_set_value(uint8_t *data) {
     uint8_t *value_id   = &(data[0]);
     uint8_t *value_data = &(data[1]);
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
     uprintf("custom_set_value! value: %u, data: %u\n", *value_id, *value_data);
-#endif
+#    endif
     // Save value
     eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + *value_id, value_data[0]);
     // Update configs
@@ -590,11 +586,9 @@ void custom_set_value(uint8_t *data) {
                     eeprom_update_byte(address, (uint8_t)(matrix_hall_range[index] >> 8));
                     eeprom_update_byte(address + 1, (uint8_t)(matrix_hall_range[index] & 0xFF));
                 }
-                // Define first calibrate done
-                eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG, 170);
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                 uprintf("Ranges saved!\n");
-#endif
+#    endif
             }
             get_configuration_calibrating();
             break;
@@ -602,9 +596,9 @@ void custom_set_value(uint8_t *data) {
             if (value_data[0] == 1) {
                 eeconfig_init_via();
                 eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + *value_id, 0);
-#ifdef CONSOLE_ENABLE
+#    ifdef CONSOLE_ENABLE
                 uprintf("Keymap reseted!\n");
-#endif
+#    endif
             }
             break;
         case id_hall_fast_trigger:
