@@ -210,7 +210,7 @@ void init_midi(void) {
     }
 }
 
-void matrix_scan_   (uint8_t index, uint8_t row, uint8_t col, uint8_t percent, uint16_t time) {
+void matrix_scan_midi (uint8_t index, uint8_t row, uint8_t col, uint8_t percent, uint16_t time) {
     uint8_t midi_note = midi_note_key[index] - QK_MIDI_NOTE_C_0 + ((midi_config.octave - 2) * 12);
     uint8_t velocity  = 0;
     if ((midi_note_on[row] & (1 << col))) {

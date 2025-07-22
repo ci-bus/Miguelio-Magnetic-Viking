@@ -1,5 +1,5 @@
 {
-    "keyboard_name": "Magnetic Viking",
+    "keyboard_name": "Miguelio Magnetic Viking",
     "manufacturer": "Miguelio",
     "maintainer": "qmk",
     "processor": "RP2040",
@@ -7,8 +7,8 @@
     "url": "https://miguelio.com",
     "usb": {
         "vid": "0x4D47",
-        "pid": "0x0012",
-        "device_version": "0.0.1"
+        "pid": "0x0013",
+        "device_version": "0.0.3"
     },
     "features": {
         "extrakey": true,
@@ -52,6 +52,7 @@
             "GP5",
             "GP6",
             "GP12",
+            "GP10",
             "GP11"
         ],
         "rows": ["GP26", "GP27", "GP28", "GP29"]
@@ -76,6 +77,7 @@
                 { "label": "-", "matrix": [0, 11], "x": 11, "y": 0 },
                 { "label": "=", "matrix": [0, 12], "x": 12, "y": 0 },
                 { "label": "`", "matrix": [0, 13], "x": 13, "y": 0 },
+                { "label": "backspace", "matrix": [1, 13], "x": 14, "y": 0 },
                 { "label": "backspace", "matrix": [0, 14], "x": 14, "y": 0 },
 
                 { "label": "tab", "matrix": [1, 0], "x": 0, "y": 1, "w": 1.5 },
@@ -109,6 +111,7 @@
                 { "label": "ent.ansi", "matrix": [2, 13], "x": 13.75, "y": 2, "w": 0.25 },
                 { "label": "ent.iso", "matrix": [2, 14], "x": 14, "y": 2 },
 
+                { "label": "shift", "matrix": [2, 17], "x": 0, "y": 3, "w": 1.25 },
                 { "label": "shift", "matrix": [3, 0], "x": 0, "y": 3, "w": 1.25 },
                 { "label": "<>", "matrix": [3, 1], "x": 1.25, "y": 3 },
                 { "label": "z", "matrix": [3, 2], "x": 2.25, "y": 3 },
@@ -122,12 +125,14 @@
                 { "label": ".", "matrix": [3, 10], "x": 10.25, "y": 3 },
                 { "label": "/", "matrix": [3, 11], "x": 11.25, "y": 3 },
                 { "label": "shift", "matrix": [3, 12], "x": 12.25, "y": 3, "w": 1.75 },
+                { "label": "shift", "matrix": [3, 13], "x": 12.25, "y": 3, "w": 1.75 },
                 { "label": "MO(1)", "matrix": [3, 14], "x": 14, "y": 3 },
 
                 { "label": "ctrl", "matrix": [0, 15], "x": 0, "y": 4, "w": 1.25 },
                 { "label": "win", "matrix": [1, 15], "x": 1.25, "y": 4, "w": 1.25 },
                 { "label": "alt", "matrix": [2, 15], "x": 2.5, "y": 4, "w": 1.25 },
-                { "label": "space", "matrix": [3, 15], "x": 3.75, "y": 4, "w": 6.25 },
+                { "label": "space", "matrix": [3, 17], "x": 3.75, "y": 4, "w": 3 },
+                { "label": "space", "matrix": [3, 15], "x": 6.75, "y": 4, "w": 3.25 },
                 { "label": "alt", "matrix": [3, 16], "x": 10, "y": 4, "w": 1.25 },
                 { "label": "alt", "matrix": [2, 16], "x": 11.25, "y": 4, "w": 1.25 },
                 { "label": "win", "matrix": [1, 16], "x": 12.5, "y": 4, "w": 1.25 },
