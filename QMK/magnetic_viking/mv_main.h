@@ -17,11 +17,11 @@
 enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 
 // Hall sensor configs
-#define HALL_GET_BASE_ROUNDS 50     // Rounds to get base value
+#define HALL_GET_BASE_ROUNDS 200    // Rounds to get base value
 #define HALL_MIN_BASE 256           // Min base value
 #define HALL_MIN_RANGE 60           // Min analog value from base
 #define HALL_MAX_RANGE 512          // Max analog value from base
-#define HALL_WAIT_US 30             // Wait to change column active
+#define HALL_WAIT_US 10             // Wait to change column active
 #define HALL_DEFAULT_THRESHOLD 50   // Threshold trigger value in percent
 #define HALL_THRESHOLD_MARGIN 10    // Margin threshold in percent
 #define HALL_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
@@ -49,6 +49,7 @@ enum via_custom_value_id {
 // JoyStick configs
 #ifdef JOYSTICK_ENABLE
 #    define JT_KEY_COUNT (JOYSTICK_AXIS_COUNT * 2 + JOYSTICK_BUTTON_COUNT)
+#    define JT_MARGIN 5 // Margin to secure readers
 // Axis button
 typedef struct {
     keypos_t key;     // Matrix position

@@ -117,7 +117,8 @@ void matrix_scan_joystick(void) {
                 // Even sum and odd subtract
                 jt_axes_values[jt_keys[jt_index].index / 2] += axis_value * (jt_keys[jt_index].index & 1 ? 1 : -1);
 #    ifdef CONSOLE_ENABLE
-                if (jt_keys[jt_index].value != axis_value) {
+                // Secure reads
+                if (axis_value > jt_keys[jt_index].value + JT_MARGIN || axis_value < jt_keys[jt_index].value - JT_MARGIN || (axis_value > 127 - JT_MARGIN && axis_value > jt_keys[jt_index].value) || (axis_value < JT_MARGIN && axis_value < jt_keys[jt_index].value)) {
                     uprintf("Joystick axis index: %u value: %d\n", jt_keys[jt_index].index, axis_value);
                     jt_keys[jt_index].value = axis_value;
                 }
