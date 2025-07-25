@@ -4,6 +4,8 @@
 #pragma once
 
 // Hall sensor configs
-#define HALL_GET_AVERAGE_ROUNDS 50 // Rounds to get average value
-#define HALL_WAIT_US 30            // Wait to change column active
-#define HALL_BROKEN_PERCENT 95     // Limit percent to broken sensors
+#define HALL_GET_AVERAGE_ROUNDS 100 // Rounds to get average value
+#define HALL_SKIP_ROUNDS 10         // Skip firsts rounds
+#define HALL_WAIT_US 4              // Wait to change column active
+#define HALL_BROKEN_PERCENT 95      // Limit percent to broken sensors
+#define HALL_ALERT_DIFF 5           // Limit to show alert by diff between reands
