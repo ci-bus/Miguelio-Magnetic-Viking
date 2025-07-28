@@ -21,7 +21,7 @@ enum layer_names { _BASE, _FN, _GAMING, _MIDI };
 #define HALL_MIN_BASE 256           // Min base value
 #define HALL_MIN_RANGE 60           // Min analog value from base
 #define HALL_MAX_RANGE 512          // Max analog value from base
-#define HALL_WAIT_US 10             // Wait to change column active
+#define HALL_WAIT_US 20             // Wait to change column active
 #define HALL_DEFAULT_THRESHOLD 50   // Threshold trigger value in percent
 #define HALL_THRESHOLD_MARGIN 10    // Margin threshold in percent
 #define HALL_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
@@ -59,6 +59,10 @@ typedef struct {
     bool     axis;    // Axis key
 } jt_key;
 // clang-format off
+enum jt_states {
+    jt_initiate = 1,
+    jt_inited
+};
 const uint16_t JT_KEYCODES[JT_KEY_COUNT] = {
     KC_A, KC_D, KC_W, KC_S,            // Joystick left
     KC_LEFT, KC_RIGHT, KC_UP, KC_DOWN, // Joystick right
