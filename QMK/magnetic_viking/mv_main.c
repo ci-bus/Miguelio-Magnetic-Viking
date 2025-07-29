@@ -170,11 +170,17 @@ void matrix_scan_joystick(void) {
                             matrix_hall_fast_trigger[index] = percent;
                         }
                     } else if (percent > hall_threshold) {
-                        joystick_state.buttons[jt_button_index / 8] |= 1 << (jt_button_index % 8);
-                        joystick_state.dirty = true;
+                        if (JT_KEYCODES[jt_keys[jt_index].index] == 20992) {
+                            jt_state = 0;
+                            layer_move(0);
+                            wait_ms(1000);
+                        } else {
+                            joystick_state.buttons[jt_button_index / 8] |= 1 << (jt_button_index % 8);
+                            joystick_state.dirty = true;
 #    ifdef CONSOLE_ENABLE
-                        uprintf("Press joystick button index: %u value: %u\n", jt_button_index, raw_value);
+                            uprintf("Press joystick button index: %u value: %u\n", jt_button_index, raw_value);
 #    endif
+                        }
                     }
                 }
             }

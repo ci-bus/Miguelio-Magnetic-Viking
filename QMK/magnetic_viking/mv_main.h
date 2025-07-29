@@ -48,7 +48,7 @@ enum via_custom_value_id {
 
 // JoyStick configs
 #ifdef JOYSTICK_ENABLE
-#    define JT_KEY_COUNT (JOYSTICK_AXIS_COUNT * 2 + JOYSTICK_BUTTON_COUNT)
+#    define JT_KEY_COUNT (JOYSTICK_AXIS_COUNT * 2 + JOYSTICK_BUTTON_COUNT + 1)
 #    define JT_MARGIN 5 // Margin to secure readers
 // Axis button
 typedef struct {
@@ -69,7 +69,8 @@ const uint16_t JT_KEYCODES[JT_KEY_COUNT] = {
     KC_J, KC_L, KC_I, KC_K,            // Joystick or triggers
     KC_F1, KC_F2, KC_F3, KC_F4,        // Buttons
     KC_F5, KC_F6, KC_F7, KC_F8,
-    KC_F9, KC_F10, KC_F11, KC_F12
+    KC_F9, KC_F10, KC_F11, KC_F12,
+    20992                              // To layer 0
 };
 // clang-format on
 #endif
