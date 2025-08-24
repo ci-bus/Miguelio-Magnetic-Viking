@@ -1,0 +1,30 @@
+{
+    "keyboard_name": "Miguelio Magnetic Viking",
+    "manufacturer": "Miguelio",
+    "maintainer": "qmk",
+    "processor": "RP2040",
+    "bootloader": "rp2040",
+    "url": "https://miguelio.com",
+    "usb": {
+        "vid": "0x4D47",
+        "pid": "0x0013",
+        "device_version": "0.0.3"
+    },
+    "diode_direction": "COL2ROW",
+    "matrix_pins": {
+        "cols": [
+            "GP7"
+        ],
+        "rows": ["GP8"]
+    },
+    "layout_aliases": {
+        "LAYOUT": "LAYOUT_60_all"
+    },
+    "layouts": {
+        "LAYOUT_60_all": {
+            "layout": [
+                { "label": "esc", "matrix": [0, 0], "x": 0, "y": 0 }
+            ]
+        }
+    }
+}
