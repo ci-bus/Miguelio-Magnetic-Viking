@@ -7,4 +7,3 @@ SRC += mv_main.c
 CONSOLE_ENABLE = no
 JOYSTICK_ENABLE = yes
 MIDI_ENABLE = no
-LTO_ENABLE = yes
