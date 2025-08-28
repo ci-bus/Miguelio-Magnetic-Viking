@@ -22,6 +22,8 @@ static uint16_t     hall_last_values[MATRIX_COLS * MATRIX_ROWS]  = {0};
 static uint16_t     hall_diffs[MATRIX_COLS * MATRIX_ROWS]        = {0};
 static uint16_t     hall_max_diff                                = 0;
 static bool         error_reads                                  = false;
+static uint16_t     hall_min_value                               = 1024;
+static uint16_t     hall_max_value                               = 0;
 
 // Replaceable functions
 __attribute__((weak)) void matrix_init_kb(void) {
@@ -56,16 +58,24 @@ bool valid_sensor(uint8_t col, uint8_t row) {
 
 void hall_get_average(void) {
     uint16_t count_valid_sensors = 0;
+    uint16_t raw_value           = 0;
     for (uint8_t round = 0; round < HALL_GET_AVERAGE_ROUNDS; round++) {
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             gpio_write_pin_low(col_pins[col]);
             wait_us(HALL_WAIT_US);
+
             for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                if (valid_sensor(col, row)) {
-                    count_valid_sensors++;
-                    all_sensors_average += analogReadPin(row_pins[row]);
+                if (round > HALL_SKIP_ROUNDS) {
+                    if (valid_sensor(col, row)) {
+                        count_valid_sensors++;
+                        raw_value = analogReadPin(row_pins[row]);
+                        all_sensors_average += raw_value;
+                    }
+                } else {
+                    raw_value = analogReadPin(row_pins[row]);
                 }
             }
+
             gpio_write_pin_high(col_pins[col]);
         }
     }
@@ -77,6 +87,12 @@ uint16_t hall_get_sensor_value(uint8_t col, uint8_t row) {
     uint8_t index = (row * MATRIX_COLS) + col;
     // Read value
     uint16_t raw_value = analogReadPin(row_pins[row]);
+    // Set max and min
+    if (raw_value > hall_max_value) {
+        hall_max_value = raw_value;
+    } else if (raw_value < hall_min_value) {
+        hall_min_value = raw_value;
+    }
     // If different value
     if (hall_last_values[index] != 0 && hall_last_values[index] != raw_value) {
         uint16_t temp_diff = abs(hall_last_values[index] - raw_value);
@@ -128,7 +144,7 @@ uint16_t hall_check_individual_sensors(void) {
                             uprintf("Col: %u, Row: %u ", col, row);
                         }
                         if (compare_result < HALL_BROKEN_PERCENT) {
-                            uprintf("[ DAMAGED SENSOR ]: %u %%", compare_result);
+                            uprintf("[ DAMAGED SENSOR ]");
                             error_reads = true;
                         } else if (hall_diffs[index] > HALL_ALERT_DIFF) {
                             uprintf("[ ALERT DIFF EXCEEDED ]: %u", hall_diffs[index]);
@@ -136,6 +152,7 @@ uint16_t hall_check_individual_sensors(void) {
                         } else {
                             uprintf("[ OK ]");
                         }
+                        // uprintf(": %u %%\n", compare_result);
                         uprintf("\n");
                     }
                 } else {
@@ -159,6 +176,10 @@ void hall_sensor_tests(void) {
     uprintf("Result health: %u %%\n", average_percent);
     uprintf("Result max diff: %u\n", hall_max_diff);
     uprintf("Result better wait_us: %u\n", HALL_WAIT_US);
+
+    // Max and min
+    uprintf("Result max value: %u\n", hall_max_value);
+    uprintf("Result min value: %u\n", hall_min_value);
 
     // Check RGB
     rgblight_enable_noeeprom();
