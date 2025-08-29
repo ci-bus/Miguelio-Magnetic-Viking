@@ -312,6 +312,7 @@ void matrix_hall_get_base(void) {
 }
 
 void matrix_hall_get_range(void) {
+    bool need_calibrate = true;
     for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
         void *address            = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
         matrix_hall_range[index] = eeprom_read_byte(address) << 8;
@@ -319,10 +320,17 @@ void matrix_hall_get_range(void) {
         //  Needs to calibrate, get default range
         if (matrix_hall_range[index] < HALL_MIN_RANGE) {
             matrix_hall_range[index] = HALL_MIN_RANGE;
-        }
-        if (matrix_hall_range[index] > HALL_MAX_RANGE) {
+        } else if (matrix_hall_range[index] > HALL_MAX_RANGE) {
             matrix_hall_range[index] = HALL_MAX_RANGE;
+        } else {
+            need_calibrate = false;
         }
+    }
+    // If needs calibrate active this
+    if (need_calibrate) {
+        eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate, 1);
+        // Set threshold to 50%
+        eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold, 50);
     }
 }
 
@@ -599,6 +607,10 @@ void custom_set_value(uint8_t *data) {
                 // Save ranges
                 for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
                     void *address = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
+                    // Secure range value
+                    if (matrix_hall_range[index] < HALL_MIN_RANGE) {
+                        matrix_hall_range[index] = HALL_MIN_RANGE;
+                    }
                     eeprom_update_byte(address, (uint8_t)(matrix_hall_range[index] >> 8));
                     eeprom_update_byte(address + 1, (uint8_t)(matrix_hall_range[index] & 0xFF));
                 }
