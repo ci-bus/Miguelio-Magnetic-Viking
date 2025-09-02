@@ -20,6 +20,7 @@ static uint32_t     hall_sum_values[MATRIX_COLS * MATRIX_ROWS]   = {0};
 static uint16_t     hall_count_values[MATRIX_COLS * MATRIX_ROWS] = {0};
 static uint16_t     hall_last_values[MATRIX_COLS * MATRIX_ROWS]  = {0};
 static uint16_t     hall_diffs[MATRIX_COLS * MATRIX_ROWS]        = {0};
+static uint16_t     hall_compares[MATRIX_COLS * MATRIX_ROWS]     = {0};
 static uint16_t     hall_max_diff                                = 0;
 static bool         error_reads                                  = false;
 static uint16_t     hall_min_value                               = 1024;
@@ -65,17 +66,14 @@ void hall_get_average(void) {
             wait_us(HALL_WAIT_US);
 
             for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+                raw_value = analogReadPin(row_pins[row]);
                 if (round > HALL_SKIP_ROUNDS) {
                     if (valid_sensor(col, row)) {
                         count_valid_sensors++;
-                        raw_value = analogReadPin(row_pins[row]);
                         all_sensors_average += raw_value;
                     }
-                } else {
-                    raw_value = analogReadPin(row_pins[row]);
                 }
             }
-
             gpio_write_pin_high(col_pins[col]);
         }
     }
@@ -137,23 +135,8 @@ uint16_t hall_check_individual_sensors(void) {
                         // Sum global average percent
                         average_percent += compare_result;
                         count_valid_sensors++;
-                        // Show log
-                        if (col < 10) {
-                            uprintf("Col:  %u, Row: %u ", col, row);
-                        } else {
-                            uprintf("Col: %u, Row: %u ", col, row);
-                        }
-                        if (compare_result < HALL_BROKEN_PERCENT) {
-                            uprintf("[ DAMAGED SENSOR ]");
-                            error_reads = true;
-                        } else if (hall_diffs[index] > HALL_ALERT_DIFF) {
-                            uprintf("[ ALERT DIFF EXCEEDED ]: %u", hall_diffs[index]);
-                            error_reads = true;
-                        } else {
-                            uprintf("[ OK ]");
-                        }
-                        // uprintf(": %u %%\n", compare_result);
-                        uprintf("\n");
+                        // Save compare result
+                        hall_compares[index] = compare_result;
                     }
                 } else {
                     analogReadPin(row_pins[row]);
@@ -172,10 +155,38 @@ void hall_sensor_tests(void) {
     // Check individual sensor
     uint16_t average_percent = hall_check_individual_sensors();
 
+    // Show log
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            if (valid_sensor(col, row)) {
+                uint8_t index = (row * MATRIX_COLS) + col;
+                if (col < 10) {
+                    uprintf("Col:  %u, Row: %u ", col, row);
+                } else {
+                    uprintf("Col: %u, Row: %u ", col, row);
+                }
+                if (hall_compares[index] < HALL_BROKEN_PERCENT) {
+                    uprintf("%u%%, Diffs: %u [ DAMAGED SENSOR ]", hall_compares[index], hall_diffs[index]);
+                    error_reads = true;
+                } else if (hall_diffs[index] > HALL_ALERT_DIFF) {
+                    uprintf("%u%%, Diffs: %u [ ALERT DIFF EXCEEDED ]", hall_compares[index], hall_diffs[index]);
+                    error_reads = true;
+                } else {
+                    if (hall_compares[index] < 100) {
+                        uprintf("%u%%,  Diffs: %u [ OK ]", hall_compares[index], hall_diffs[index]);
+                    } else {
+                        uprintf("%u%%, Diffs: %u [ OK ]", hall_compares[index], hall_diffs[index]);
+                    }
+                }
+                uprintf("\n");
+            }
+        }
+    }
+
     // Final logs
+    uprintf("Result wait_us: %u\n", HALL_WAIT_US);
     uprintf("Result health: %u %%\n", average_percent);
     uprintf("Result max diff: %u\n", hall_max_diff);
-    uprintf("Result better wait_us: %u\n", HALL_WAIT_US);
 
     // Max and min
     uprintf("Result max value: %u\n", hall_max_value);
