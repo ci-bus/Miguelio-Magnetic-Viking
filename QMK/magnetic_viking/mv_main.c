@@ -18,21 +18,23 @@
 extern MidiDevice midi_device;
 #endif
 
+// Variables
 static matrix_row_t matrix[MATRIX_ROWS]                                 = {0};
 static uint16_t     matrix_hall_base[MATRIX_ROWS * MATRIX_COLS]         = {0};
 static uint16_t     matrix_hall_range[MATRIX_ROWS * MATRIX_COLS]        = {0};
 static uint16_t     matrix_hall_fast_trigger[MATRIX_ROWS * MATRIX_COLS] = {0};
-static uint8_t      hall_thresholds[MATRIX_ROWS * MATRIX_COLS]          = {0};
-static uint8_t      hall_curves[MATRIX_ROWS * MATRIX_COLS]              = {0};
 static pin_t        row_pins[MATRIX_ROWS]                               = MATRIX_ROW_PINS;
 static pin_t        col_pins[MATRIX_COLS]                               = MATRIX_COL_PINS;
-static uint8_t      hall_threshold                                      = HALL_DEFAULT_THRESHOLD;
 static bool         calibrating                                         = false;
 static bool         fast_trigger                                        = false;
 static uint8_t      current_layer                                       = 0;
-static uint8_t      curve_response                                      = 0;
-static uint8_t      curves_table[5][101]                                = {0};
-static uint8_t      col                                                 = 0;
+// Threshold
+static uint8_t hall_threshold                             = HALL_DEFAULT_THRESHOLD;
+static uint8_t hall_thresholds[MATRIX_ROWS * MATRIX_COLS] = {0};
+// Curve
+static uint8_t curves_table[5][101]                   = {0};
+static uint8_t hall_curve                             = 0;
+static uint8_t hall_curves[MATRIX_ROWS * MATRIX_COLS] = {0};
 
 // Replaceable functions
 __attribute__((weak)) void matrix_init_kb(void) {
@@ -47,6 +49,7 @@ __attribute__((weak)) void matrix_init_user(void) {}
 
 __attribute__((weak)) void matrix_scan_user(void) {}
 
+// Check matrix position valid sensor
 bool valid_sensor(uint8_t col, uint8_t row) {
     if (col == 17 && row == 0) {
         return false;
@@ -55,6 +58,15 @@ bool valid_sensor(uint8_t col, uint8_t row) {
         return false;
     }
     return true;
+}
+
+// Discharge capacitors
+void hall_discharge_capacitors(void) {
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        gpio_set_pin_output(row_pins[row]);
+        gpio_write_pin_low(row_pins[row]);
+    }
+    wait_us(HALL_WAIT_US_LOAD);
 }
 
 #ifdef JOYSTICK_ENABLE
@@ -85,10 +97,6 @@ void init_joystick(void) {
     uint8_t jt_index = 0;
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            // Skipping missing sensors
-            if (!valid_sensor(col, row)) {
-                continue;
-            }
             keypos_t key     = (keypos_t){.col = col, .row = row};
             uint16_t keycode = keymap_key_to_keycode(_GAMING, key);
             uint8_t  index   = jt_get_keycode_index(keycode);
@@ -113,14 +121,17 @@ void matrix_scan_joystick(void) {
         if (jt_keys[jt_index].key.col == col) {
             continue;
         }
+        // On column
         gpio_write_pin_low(col_pins[col]);
-        wait_us(HALL_WAIT_US);
+        wait_us(HALL_WAIT_US_LOAD);
 
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             uint8_t index = (row * MATRIX_COLS) + col;
-            if (jt_keys[jt_index].key.row != row || !matrix_hall_range[index]) {
+            if (jt_keys[jt_index].key.row != row) {
                 continue;
             }
+            // Active and read
+            gpio_set_pin_input(row_pins[row]);
             uint16_t raw_value  = analogReadPin(row_pins[row]);
             uint16_t temp_diff  = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
             uint8_t  axis_value = 0;
@@ -202,12 +213,9 @@ void matrix_scan_joystick(void) {
             }
             jt_index += 1;
         }
+        // Off column
         gpio_write_pin_high(col_pins[col]);
-        // Discharge capacitors
-        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            gpio_set_pin_output(row_pins[row]);
-            gpio_write_pin_low(row_pins[row]);
-        }
+        hall_discharge_capacitors();
     }
     // Send axes
     for (uint8_t i = 0; i < JOYSTICK_AXIS_COUNT; i++) {
@@ -327,46 +335,29 @@ void matrix_hall_get_base(void) {
     for (uint8_t t = 0; t < HALL_GET_BASE_ROUNDS; t++) {
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             gpio_write_pin_low(col_pins[col]);
-            wait_us(HALL_WAIT_US);
+            wait_us(HALL_WAIT_US_LOAD);
             for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                // Skipping missing sensors
-                if (!valid_sensor(col, row)) {
-                    continue;
-                }
-                // Active pin and read
                 gpio_set_pin_input(row_pins[row]);
-                analogReadPin(row_pins[row]);
                 matrix_hall_base[(row * MATRIX_COLS) + col] = analogReadPin(row_pins[row]);
             }
             gpio_write_pin_high(col_pins[col]);
-            // Discharge capacitors
-            for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                gpio_set_pin_output(row_pins[row]);
-                gpio_write_pin_low(row_pins[row]);
-            }
-            wait_us(HALL_WAIT_US);
+            hall_discharge_capacitors();
         }
     }
 }
 
 void matrix_hall_get_range(void) {
-    bool need_calibrate = true;
-    for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
-        void *address            = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
-        matrix_hall_range[index] = eeprom_read_byte(address) << 8;
-        matrix_hall_range[index] |= eeprom_read_byte(address + 1);
-        //  Needs to calibrate, get default range
-        if (matrix_hall_range[index] <= HALL_MIN_RANGE || matrix_hall_range[index] > HALL_MAX_RANGE) {
-            matrix_hall_range[index] = 0;
-        } else {
-            need_calibrate = false;
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            uint8_t index            = (row * MATRIX_COLS) + col;
+            void   *address          = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
+            matrix_hall_range[index] = eeprom_read_byte(address) << 8;
+            matrix_hall_range[index] |= eeprom_read_byte(address + 1);
+            // Secure min range
+            if (matrix_hall_range[index] < HALL_MIN_RANGE) {
+                matrix_hall_range[index] = HALL_MIN_RANGE;
+            }
         }
-    }
-    // If needs calibrate active this
-    if (need_calibrate) {
-        eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_sensors_calibrate, 1);
-        // Set threshold to 50%
-        eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold, 50);
     }
 }
 
@@ -406,9 +397,31 @@ void create_table_curves(void) {
     }
 }
 
+uint8_t hall_keycode_to_curve(uint16_t keycode, uint8_t default_curve) {
+    uint8_t curve = default_curve;
+    switch (keycode) {
+        case KC_P0:
+            curve = 0;
+            break;
+        case KC_P1:
+            curve = 1;
+            break;
+        case KC_P2:
+            curve = 2;
+            break;
+        case KC_P3:
+            curve = 3;
+            break;
+        case KC_P4:
+            curve = 4;
+            break;
+    }
+    return curve;
+}
+
 void get_configuration_curves(void) {
     // Default curve response
-    curve_response = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve_response);
+    hall_curve = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_curve);
     // To performance calcule curve response
     create_table_curves();
     // Get curve by key
@@ -418,26 +431,10 @@ void get_configuration_curves(void) {
             if (!valid_sensor(col, row)) {
                 continue;
             }
-            uint8_t  index   = (row * MATRIX_COLS) + col;
-            keypos_t key     = (keypos_t){.col = col, .row = row};
-            uint16_t keycode = keymap_key_to_keycode(_THRESHOLD, key);
-            switch (keycode) {
-                case KC_1:
-                    hall_curves[index] = 1;
-                    break;
-                case KC_2:
-                    hall_curves[index] = 2;
-                    break;
-                case KC_3:
-                    hall_curves[index] = 3;
-                    break;
-                case KC_4:
-                    hall_curves[index] = 4;
-                    break;
-                default:
-                    hall_curves[index] = curve_response;
-                    break;
-            }
+            uint8_t  index     = (row * MATRIX_COLS) + col;
+            keypos_t key       = (keypos_t){.col = col, .row = row};
+            uint16_t keycode   = keymap_key_to_keycode(_THRESHOLD, key);
+            hall_curves[index] = hall_keycode_to_curve(keycode, hall_curve);
         }
     }
 }
@@ -451,6 +448,48 @@ void check_minimun_threshold(uint8_t index) {
     }
 }
 
+uint8_t hall_keycode_to_threshold(uint16_t keycode, uint8_t default_threshold) {
+    uint8_t threshold = default_threshold;
+    switch (keycode) {
+        case KC_P0:
+            threshold = 0;
+            break;
+        case KC_P1:
+            threshold = 10;
+            break;
+        case KC_P2:
+            threshold = 20;
+            break;
+        case KC_P3:
+            threshold = 30;
+            break;
+        case KC_P4:
+            threshold = 40;
+            break;
+        case KC_P5:
+            threshold = 50;
+            break;
+        case KC_P6:
+            threshold = 60;
+            break;
+        case KC_P7:
+            threshold = 70;
+            break;
+        case KC_P8:
+            threshold = 80;
+            break;
+        case KC_P9:
+            threshold = 90;
+            break;
+    }
+    threshold = threshold * (100 - HALL_THRESHOLD_MARGIN * 2) / 100 + HALL_THRESHOLD_MARGIN;
+    // Check limits to valid threshold
+    if (threshold < HALL_THRESHOLD_MARGIN || threshold > (100 - HALL_THRESHOLD_MARGIN)) {
+        threshold = HALL_DEFAULT_THRESHOLD;
+    }
+    return threshold;
+}
+
 void get_configuration_hall_thresholds(void) {
     hall_threshold = eeprom_read_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + id_hall_threshold);
     // Get threshold by key
@@ -460,50 +499,11 @@ void get_configuration_hall_thresholds(void) {
             if (!valid_sensor(col, row)) {
                 continue;
             }
-            uint8_t  index   = (row * MATRIX_COLS) + col;
-            keypos_t key     = (keypos_t){.col = col, .row = row};
-            uint16_t keycode = keymap_key_to_keycode(_THRESHOLD, key);
-            switch (keycode) {
-                case KC_0:
-                    hall_thresholds[index] = 0;
-                    break;
-                case KC_1:
-                    hall_thresholds[index] = 10;
-                    break;
-                case KC_2:
-                    hall_thresholds[index] = 20;
-                    break;
-                case KC_3:
-                    hall_thresholds[index] = 30;
-                    break;
-                case KC_4:
-                    hall_thresholds[index] = 40;
-                    break;
-                case KC_5:
-                    hall_thresholds[index] = 50;
-                    break;
-                case KC_6:
-                    hall_thresholds[index] = 60;
-                    break;
-                case KC_7:
-                    hall_thresholds[index] = 70;
-                    break;
-                case KC_8:
-                    hall_thresholds[index] = 80;
-                    break;
-                case KC_9:
-                    hall_thresholds[index] = 90;
-                    break;
-                default:
-                    hall_thresholds[index] = hall_threshold;
-                    break;
-            }
-            hall_thresholds[index] = hall_thresholds[index] * (100 - HALL_THRESHOLD_MARGIN * 2) / 100 + HALL_THRESHOLD_MARGIN;
-            // Check limits to valid threshold
-            if (hall_thresholds[index] < HALL_THRESHOLD_MARGIN || hall_thresholds[index] > (100 - HALL_THRESHOLD_MARGIN)) {
-                hall_thresholds[index] = HALL_DEFAULT_THRESHOLD;
-            }
-            // Secure min threshold
+            uint8_t  index         = (row * MATRIX_COLS) + col;
+            keypos_t key           = (keypos_t){.col = col, .row = row};
+            uint16_t keycode       = keymap_key_to_keycode(_THRESHOLD, key);
+            hall_thresholds[index] = hall_keycode_to_threshold(keycode, hall_threshold);
+            // Secure min threshold with curve
             check_minimun_threshold(index);
         }
     }
@@ -561,123 +561,98 @@ uint8_t matrix_scan_keyboard(void) {
 #ifdef MIDI_ENABLE
     uint16_t time = timer_read();
 #endif
-    // for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-    gpio_write_pin_low(col_pins[col]);
-    wait_us(HALL_WAIT_US);
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        gpio_write_pin_low(col_pins[col]);
+        wait_us(HALL_WAIT_US_LOAD);
 
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        uint8_t index = (row * MATRIX_COLS) + col;
-        // Skipping missing sensors
-        if (!valid_sensor(col, row) || !matrix_hall_range[index]) {
-            continue;
-        }
-        // Active pin and read
-        gpio_set_pin_input(row_pins[row]);
-        uint16_t raw_value = analogReadPin(row_pins[row]);
-        uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
-        // Calcule percent pressed
-        uint8_t percent = temp_diff * 100 / matrix_hall_range[index];
-        if (percent > 100) {
-            percent = 100;
-        }
-        // Get curved value
-        percent = curves_table[hall_curves[index]][percent];
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            uint8_t index = (row * MATRIX_COLS) + col;
+            // Active pin and read
+            gpio_set_pin_input(row_pins[row]);
+            uint16_t raw_value = analogReadPin(row_pins[row]);
+            uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
+            // Calcule percent pressed
+            uint8_t percent = temp_diff * 100 / matrix_hall_range[index];
+            if (percent > 100) {
+                percent = 100;
+            }
+            // Get curved value
+            percent = curves_table[hall_curves[index]][percent];
 #ifdef MIDI_ENABLE
-        if (midi_note_key[index] > 0) {
-            matrix_scan_midi(index, row, col, percent, time);
-            continue;
-        }
+            if (midi_note_key[index] > 0) {
+                matrix_scan_midi(index, row, col, percent, time);
+                continue;
+            }
 #endif
-        if (matrix[row] & (1 << col)) {
-            // Check released
-            if (fast_trigger) {
-                if (percent < matrix_hall_fast_trigger[index] - HALL_FAST_RELEASE_MARGIN) {
+            if (matrix[row] & (1 << col)) {
+                // Check released
+                if (fast_trigger) {
+                    if (percent < matrix_hall_fast_trigger[index] - HALL_FAST_RELEASE_MARGIN) {
+                        matrix[row] &= ~(1 << col);
+                        changed                         = true;
+                        matrix_hall_fast_trigger[index] = percent;
+#ifdef CONSOLE_ENABLE
+                        uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
+#endif
+                    } else if (percent > matrix_hall_fast_trigger[index]) {
+                        matrix_hall_fast_trigger[index] = percent;
+                    }
+                } else if (percent < hall_thresholds[index] - HALL_PRESS_RELEASE_MARGIN) {
                     matrix[row] &= ~(1 << col);
-                    changed                         = true;
-                    matrix_hall_fast_trigger[index] = percent;
+                    changed = true;
 #ifdef CONSOLE_ENABLE
                     uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
 #endif
-                } else if (percent > matrix_hall_fast_trigger[index]) {
-                    matrix_hall_fast_trigger[index] = percent;
                 }
-            } else if (percent < hall_thresholds[index] - HALL_PRESS_RELEASE_MARGIN) {
-                matrix[row] &= ~(1 << col);
-                changed = true;
+            } else {
+                // Check press
+                if (fast_trigger) {
+                    if (percent > hall_thresholds[index] && percent > matrix_hall_fast_trigger[index] + HALL_FAST_RELEASE_MARGIN) {
+                        matrix[row] |= (1 << col);
+                        changed                         = true;
+                        matrix_hall_fast_trigger[index] = percent;
 #ifdef CONSOLE_ENABLE
-                uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
+                        uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
 #endif
-            }
-        } else {
-            // Check press
-            if (fast_trigger) {
-                if (percent > hall_thresholds[index] && percent > matrix_hall_fast_trigger[index] + HALL_FAST_RELEASE_MARGIN) {
+                    } else if (percent < matrix_hall_fast_trigger[index]) {
+                        matrix_hall_fast_trigger[index] = percent;
+                    }
+                } else if (percent > hall_thresholds[index]) {
                     matrix[row] |= (1 << col);
-                    changed                         = true;
-                    matrix_hall_fast_trigger[index] = percent;
+                    changed = true;
 #ifdef CONSOLE_ENABLE
                     uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
 #endif
-                } else if (percent < matrix_hall_fast_trigger[index]) {
-                    matrix_hall_fast_trigger[index] = percent;
                 }
-            } else if (percent > hall_thresholds[index]) {
-                matrix[row] |= (1 << col);
-                changed = true;
-#ifdef CONSOLE_ENABLE
-                uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
-#endif
             }
         }
-    }
-    gpio_write_pin_high(col_pins[col]);
-    // Discharge capacitors
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        gpio_set_pin_output(row_pins[row]);
-        gpio_write_pin_low(row_pins[row]);
-    }
-    //}
-    // Next column
-    col = col + 1;
-    if (col == MATRIX_COLS) {
-        col = 0;
+        gpio_write_pin_high(col_pins[col]);
+        hall_discharge_capacitors();
     }
     matrix_scan_kb();
     return changed;
 }
 
 void matrix_scan_calibrate(void) {
-    // for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-    gpio_write_pin_low(col_pins[col]);
-    wait_us(HALL_WAIT_US);
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        // Skipping missing sensors
-        if (!valid_sensor(col, row)) {
-            continue;
-        }
-        // Active pin and read
-        gpio_set_pin_input(row_pins[row]);
-        uint16_t raw_value = analogReadPin(row_pins[row]);
-        uint8_t  index     = (row * MATRIX_COLS) + col;
-        uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
-        // Update range
-        if (temp_diff > matrix_hall_range[index]) {
-            matrix_hall_range[index] = temp_diff;
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        gpio_write_pin_low(col_pins[col]);
+        wait_us(HALL_WAIT_US_LOAD);
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            // Active pin and read
+            gpio_set_pin_input(row_pins[row]);
+            uint16_t raw_value = analogReadPin(row_pins[row]);
+            uint8_t  index     = (row * MATRIX_COLS) + col;
+            uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
+            // Update range
+            if (temp_diff > matrix_hall_range[index]) {
+                matrix_hall_range[index] = temp_diff;
 #ifdef CONSOLE_ENABLE
-            uprintf("New col: %u row: %u range: %u\n", col, row, matrix_hall_range[index]);
+                uprintf("Col: %u row: %u range: %u\n", col, row, matrix_hall_range[index]);
 #endif
+            }
         }
-    }
-    gpio_write_pin_high(col_pins[col]);
-    // Discharge capacitors
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        gpio_set_pin_output(row_pins[row]);
-        gpio_write_pin_low(row_pins[row]);
-    }
-    //}
-    col = col + 1;
-    if (col == MATRIX_COLS) {
-        col = 0;
+        gpio_write_pin_high(col_pins[col]);
+        hall_discharge_capacitors();
     }
 }
 
@@ -708,7 +683,7 @@ void custom_set_value(uint8_t *data) {
     uprintf("custom_set_value! value: %u, data: %u\n", *value_id, *value_data);
 #endif
     // Save value with limited value id
-    if (*value_id >= id_hall_sensors_calibrate && *value_id <= id_hall_curve_response) {
+    if (*value_id >= id_hall_sensors_calibrate && *value_id <= id_hall_curve) {
         eeprom_update_byte((uint8_t *)EEPROM_CUSTOM_CONFIG + *value_id, value_data[0]);
     }
     // Update configs
@@ -718,8 +693,9 @@ void custom_set_value(uint8_t *data) {
                 // Save ranges
                 for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
                     void *address = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
+                    // Secure min range
                     if (matrix_hall_range[index] <= HALL_MIN_RANGE) {
-                        matrix_hall_range[index] = 0;
+                        matrix_hall_range[index] = HALL_MIN_RANGE;
                     }
                     eeprom_update_byte(address, (uint8_t)(matrix_hall_range[index] >> 8));
                     eeprom_update_byte(address + 1, (uint8_t)(matrix_hall_range[index] & 0xFF));
@@ -745,7 +721,7 @@ void custom_set_value(uint8_t *data) {
         case id_hall_threshold:
             get_configuration_hall_thresholds();
             break;
-        case id_hall_curve_response:
+        case id_hall_curve:
             get_configuration_curves();
             get_configuration_hall_thresholds();
             break;
@@ -788,4 +764,45 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
 
     // Return the unhandled state
     *command_id = id_unhandled;
+}
+
+void on_via_change_threshold_by_key(uint8_t row, uint8_t col, uint16_t keycode) {
+    uint8_t index          = (row * MATRIX_COLS) + col;
+    hall_thresholds[index] = hall_keycode_to_threshold(keycode, hall_threshold);
+#ifdef CONSOLE_ENABLE
+    uprintf("Changed key threshold, col: %u, row: %u, threshold: %u\n", col, row, hall_thresholds[index]);
+#endif
+    // Secure min threshold with curve
+    check_minimun_threshold(index);
+}
+
+void on_via_change_curve_by_key(uint8_t row, uint8_t col, uint16_t keycode) {
+    uint8_t index          = (row * MATRIX_COLS) + col;
+    hall_curves[index] = hall_keycode_to_curve(keycode, hall_curve);
+#ifdef CONSOLE_ENABLE
+    uprintf("Changed key curve, col: %u, row: %u, curve: %u\n", col, row, hall_curves[index]);
+#endif
+    // Secure min threshold with curve
+    check_minimun_threshold(index);
+}
+
+bool via_command_kb(uint8_t *data, uint8_t length) {
+    uint8_t *command_id   = &(data[0]);
+    uint8_t *command_data = &(data[1]);
+    if (*command_id == id_dynamic_keymap_set_keycode) {
+        uint8_t  layer   = command_data[0];
+        uint8_t  row     = command_data[1];
+        uint8_t  col     = command_data[2];
+        uint16_t keycode = (command_data[3] << 8) | command_data[4];
+
+        switch (layer) {
+            case _THRESHOLD:
+                on_via_change_threshold_by_key(row, col, keycode);
+                break;
+            case _CURVE:
+                on_via_change_curve_by_key(row, col, keycode);
+                break;
+        }
+    }
+    return false;
 }

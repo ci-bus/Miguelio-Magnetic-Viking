@@ -14,18 +14,20 @@
     1 Keyboard customs keycodes
     2 Joystick configs (This actives joystick and disables keyboard)
 \*/
-enum layer_names { _BASE, _FN, _GAMING, _MIDI, _THRESHOLD };
+enum layer_names { _BASE, _FN, _GAMING, _MIDI, _THRESHOLD, _CURVE, _CUSTOM1, _CUSTOM2 };
 
 // Hall sensor configs
-#define HALL_GET_BASE_ROUNDS 200     // Rounds to get base value
-#define HALL_MIN_BASE 200            // Min base value
-#define HALL_MIN_RANGE 40            // Min analog value from base
-#define HALL_MAX_RANGE 512           // Max analog value from base
-#define HALL_WAIT_US 30             // Wait to change column active
-#define HALL_DEFAULT_THRESHOLD 50    // Threshold trigger value in percent
-#define HALL_THRESHOLD_MARGIN 10     // Margin threshold in percent
-#define HALL_PRESS_RELEASE_MARGIN 10 // Margin pressed / release point percent
-#define HALL_FAST_RELEASE_MARGIN 10  // Margin fast release point percent
+#define HALL_GET_BASE_ROUNDS 200  // Rounds to get base value
+#define HALL_MIN_BASE 200         // Min base value
+#define HALL_MIN_RANGE 60         // Min analog value from base
+#define HALL_MAX_RANGE 512        // Max analog value from base
+#define HALL_WAIT_US_LOAD 10      // Wait to change column active
+#define HALL_WAIT_US_DISCHARGE 15 // Wait to change column active
+
+#define HALL_DEFAULT_THRESHOLD 50   // Threshold trigger value in percent
+#define HALL_THRESHOLD_MARGIN 10 // Margin threshold in percent
+#define HALL_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+#define HALL_FAST_RELEASE_MARGIN 5  // Margin fast release point percent
 
 #ifdef MIDI_ENABLE
 #    define HALL_MIDI_THRESHOLD 80         // Threshold trigger value in percent to midi
@@ -42,7 +44,7 @@ enum via_custom_value_id {
     id_layout_reset_keymap,        // Reset keymaps to default
     id_hall_threshold,             // Threshold point
     id_hall_fast_trigger,          // Fast release and press again
-    id_hall_curve_response         // Hall sensor curve response
+    id_hall_curve         // Hall sensor curve response
 };
 // clang-format on
 
