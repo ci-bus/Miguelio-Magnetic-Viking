@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include QMK_KEYBOARD_H
 #include "mv_main.h"
-#include "analog.h"
+#include "string.h"
 #include "matrix.h"
+#include "print.h"
+#include "quantum.h"
+#include "analog.h"
 #include "hardware/gpio.h"
 #include "wait.h"
-#include "string.h"
 #include "via.h"
-#include "print.h"
 #include "math.h"
-#include "quantum.h"
 #ifdef JOYSTICK_ENABLE
 #    include "joystick.h"
 #endif
@@ -35,15 +35,16 @@ static uint8_t hall_thresholds[MATRIX_ROWS * MATRIX_COLS] = {0};
 static uint8_t curves_table[5][101]                   = {0};
 static uint8_t hall_curve                             = 0;
 static uint8_t hall_curves[MATRIX_ROWS * MATRIX_COLS] = {0};
+// Matrix
+static uint16_t column_reads[4] = {0};
+// Status
+// static uint8_t base_skip_rounds = 0;
+// static uint8_t status = waiting_to_get_base;
 
 // Replaceable functions
-__attribute__((weak)) void matrix_init_kb(void) {
-    matrix_init_user();
-}
+__attribute__((weak)) void matrix_init_kb(void) { matrix_init_user(); }
 
-__attribute__((weak)) void matrix_scan_kb(void) {
-    matrix_scan_user();
-}
+__attribute__((weak)) void matrix_scan_kb(void) { matrix_scan_user(); }
 
 __attribute__((weak)) void matrix_init_user(void) {}
 
@@ -66,7 +67,17 @@ void hall_discharge_capacitors(void) {
         gpio_set_pin_output(row_pins[row]);
         gpio_write_pin_low(row_pins[row]);
     }
+    wait_us(HALL_WAIT_US_DISCHARGE);
+}
+
+void matrix_column_reads(uint8_t col) {
+    gpio_write_pin_low(col_pins[col]);
     wait_us(HALL_WAIT_US_LOAD);
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        column_reads[row] = analogReadPin(row_pins[row]);
+    }
+    gpio_write_pin_high(col_pins[col]);
+    hall_discharge_capacitors();
 }
 
 #ifdef JOYSTICK_ENABLE
@@ -118,22 +129,16 @@ void matrix_scan_joystick(void) {
     uint8_t jt_index = 0;
 
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        if (jt_keys[jt_index].key.col == col) {
+        if (jt_keys[jt_index].key.col != col) {
             continue;
         }
-        // On column
-        gpio_write_pin_low(col_pins[col]);
-        wait_us(HALL_WAIT_US_LOAD);
-
+        matrix_column_reads(col);
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             uint8_t index = (row * MATRIX_COLS) + col;
             if (jt_keys[jt_index].key.row != row) {
                 continue;
             }
-            // Active and read
-            gpio_set_pin_input(row_pins[row]);
-            uint16_t raw_value  = analogReadPin(row_pins[row]);
-            uint16_t temp_diff  = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
+            uint16_t temp_diff  = column_reads[row] < matrix_hall_base[index] ? matrix_hall_base[index] - column_reads[row] : column_reads[row] - matrix_hall_base[index];
             uint8_t  axis_value = 0;
             if (temp_diff > HALL_PRESS_RELEASE_MARGIN) {
                 axis_value = temp_diff * 127 / matrix_hall_range[index];
@@ -171,7 +176,7 @@ void matrix_scan_joystick(void) {
                             joystick_state.dirty            = true;
                             matrix_hall_fast_trigger[index] = percent;
 #    ifdef CONSOLE_ENABLE
-                            uprintf("Release joystick button index: %u value: %u\n", jt_button_index, raw_value);
+                            uprintf("Release joystick button index: %u value: %u\n", jt_button_index, column_reads[row]);
 #    endif
                         } else if (percent > matrix_hall_fast_trigger[index]) {
                             matrix_hall_fast_trigger[index] = percent;
@@ -180,7 +185,7 @@ void matrix_scan_joystick(void) {
                         joystick_state.buttons[jt_button_index / 8] &= ~(1 << (jt_button_index % 8));
                         joystick_state.dirty = true;
 #    ifdef CONSOLE_ENABLE
-                        uprintf("Release joystick button index: %u value: %u\n", jt_button_index, raw_value);
+                        uprintf("Release joystick button index: %u value: %u\n", jt_button_index, column_reads[row]);
 #    endif
                     }
                 } else {
@@ -191,7 +196,7 @@ void matrix_scan_joystick(void) {
                             joystick_state.dirty            = true;
                             matrix_hall_fast_trigger[index] = percent;
 #    ifdef CONSOLE_ENABLE
-                            uprintf("Press joystick button index: %u value: %u\n", jt_button_index, raw_value);
+                            uprintf("Press joystick button index: %u value: %u\n", jt_button_index, column_reads[row]);
 #    endif
                         } else if (percent < matrix_hall_fast_trigger[index]) {
                             matrix_hall_fast_trigger[index] = percent;
@@ -205,7 +210,7 @@ void matrix_scan_joystick(void) {
                             joystick_state.buttons[jt_button_index / 8] |= 1 << (jt_button_index % 8);
                             joystick_state.dirty = true;
 #    ifdef CONSOLE_ENABLE
-                            uprintf("Press joystick button index: %u value: %u\n", jt_button_index, raw_value);
+                            uprintf("Press joystick button index: %u value: %u\n", jt_button_index, column_reads[row]);
 #    endif
                         }
                     }
@@ -213,9 +218,6 @@ void matrix_scan_joystick(void) {
             }
             jt_index += 1;
         }
-        // Off column
-        gpio_write_pin_high(col_pins[col]);
-        hall_discharge_capacitors();
     }
     // Send axes
     for (uint8_t i = 0; i < JOYSTICK_AXIS_COUNT; i++) {
@@ -332,16 +334,12 @@ void matrix_print(void) {
 }
 
 void matrix_hall_get_base(void) {
-    for (uint8_t t = 0; t < HALL_GET_BASE_ROUNDS; t++) {
+    for (uint8_t t = 0; t < HALL_GET_BASE_SCANS; t++) {
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            gpio_write_pin_low(col_pins[col]);
-            wait_us(HALL_WAIT_US_LOAD);
+            matrix_column_reads(col);
             for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-                gpio_set_pin_input(row_pins[row]);
-                matrix_hall_base[(row * MATRIX_COLS) + col] = analogReadPin(row_pins[row]);
+                matrix_hall_base[(row * MATRIX_COLS) + col] = column_reads[row];
             }
-            gpio_write_pin_high(col_pins[col]);
-            hall_discharge_capacitors();
         }
     }
 }
@@ -362,8 +360,15 @@ void matrix_hall_get_range(void) {
 }
 
 void matrix_hall_reset_range(void) {
-    for (uint8_t index = 0; index < MATRIX_ROWS * MATRIX_COLS; index++) {
-        matrix_hall_range[index] = HALL_MIN_RANGE;
+    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+            uint8_t index = (row * MATRIX_COLS) + col;
+            if (valid_sensor(col, row)) {
+                matrix_hall_range[index] = HALL_MIN_RANGE;
+            } else {
+                matrix_hall_range[index] = HALL_MAX_RANGE;
+            }
+        }
     }
 }
 
@@ -541,36 +546,34 @@ void keyboard_pre_init_kb(void) {
         gpio_set_pin_input(row_pins[row]);
         analogReadPin(row_pins[row]);
     }
+    wait_ms(1000);
     get_configurations();
 }
 
 void matrix_init(void) {
-    matrix_init_kb();
+    matrix_init_user();
 }
 
 void keyboard_post_init_user(void) {
-    rgblight_disable_noeeprom();
+    rgblight_disable();
+#ifdef COUNT_SCANS
+    last_time = timer_read();
+#endif
 #ifdef CONSOLE_ENABLE
-    uprintf("Keyboard inited!");
+    uprintf("Keyboard inited!\n");
 #endif
 }
 
 uint8_t matrix_scan_keyboard(void) {
     bool changed = false;
-
 #ifdef MIDI_ENABLE
     uint16_t time = timer_read();
 #endif
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        gpio_write_pin_low(col_pins[col]);
-        wait_us(HALL_WAIT_US_LOAD);
-
+        matrix_column_reads(col);
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            uint8_t index = (row * MATRIX_COLS) + col;
-            // Active pin and read
-            gpio_set_pin_input(row_pins[row]);
-            uint16_t raw_value = analogReadPin(row_pins[row]);
-            uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
+            uint8_t  index     = (row * MATRIX_COLS) + col;
+            uint16_t temp_diff = column_reads[row] < matrix_hall_base[index] ? matrix_hall_base[index] - column_reads[row] : column_reads[row] - matrix_hall_base[index];
             // Calcule percent pressed
             uint8_t percent = temp_diff * 100 / matrix_hall_range[index];
             if (percent > 100) {
@@ -592,7 +595,7 @@ uint8_t matrix_scan_keyboard(void) {
                         changed                         = true;
                         matrix_hall_fast_trigger[index] = percent;
 #ifdef CONSOLE_ENABLE
-                        uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
+                        uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], column_reads[row]);
 #endif
                     } else if (percent > matrix_hall_fast_trigger[index]) {
                         matrix_hall_fast_trigger[index] = percent;
@@ -601,7 +604,7 @@ uint8_t matrix_scan_keyboard(void) {
                     matrix[row] &= ~(1 << col);
                     changed = true;
 #ifdef CONSOLE_ENABLE
-                    uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value);
+                    uprintf("Release col: %u row: %u base: %u range: %u value: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], column_reads[row]);
 #endif
                 }
             } else {
@@ -612,7 +615,7 @@ uint8_t matrix_scan_keyboard(void) {
                         changed                         = true;
                         matrix_hall_fast_trigger[index] = percent;
 #ifdef CONSOLE_ENABLE
-                        uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
+                        uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], column_reads[row], hall_threshold);
 #endif
                     } else if (percent < matrix_hall_fast_trigger[index]) {
                         matrix_hall_fast_trigger[index] = percent;
@@ -621,39 +624,35 @@ uint8_t matrix_scan_keyboard(void) {
                     matrix[row] |= (1 << col);
                     changed = true;
 #ifdef CONSOLE_ENABLE
-                    uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], raw_value, hall_threshold);
+                    uprintf("Press col: %u row: %u base: %u range: %u value: %u threshold: %u\n", col, row, matrix_hall_base[index], matrix_hall_range[index], column_reads[row], hall_threshold);
+#endif
+                }
+            }
+            // Doing calibrate
+            if (calibrating) {
+                uint16_t temp_diff = column_reads[row] < matrix_hall_base[index] ? matrix_hall_base[index] - column_reads[row] : column_reads[row] - matrix_hall_base[index];
+                // Update range
+                if (temp_diff > matrix_hall_range[index]) {
+                    matrix_hall_range[index] = temp_diff;
+#ifdef CONSOLE_ENABLE
+                    uprintf("Col: %u row: %u range: %u\n", col, row, matrix_hall_range[index]);
 #endif
                 }
             }
         }
-        gpio_write_pin_high(col_pins[col]);
-        hall_discharge_capacitors();
     }
-    matrix_scan_kb();
-    return changed;
-}
-
-void matrix_scan_calibrate(void) {
-    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        gpio_write_pin_low(col_pins[col]);
-        wait_us(HALL_WAIT_US_LOAD);
-        for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-            // Active pin and read
-            gpio_set_pin_input(row_pins[row]);
-            uint16_t raw_value = analogReadPin(row_pins[row]);
-            uint8_t  index     = (row * MATRIX_COLS) + col;
-            uint16_t temp_diff = raw_value < matrix_hall_base[index] ? matrix_hall_base[index] - raw_value : raw_value - matrix_hall_base[index];
-            // Update range
-            if (temp_diff > matrix_hall_range[index]) {
-                matrix_hall_range[index] = temp_diff;
-#ifdef CONSOLE_ENABLE
-                uprintf("Col: %u row: %u range: %u\n", col, row, matrix_hall_range[index]);
+#ifdef COUNT_SCANS
+    total_scans++;
+    uint16_t elapsed = timer_elapsed(last_time);
+    if (elapsed >= 1000) {
+#    ifdef CONSOLE_ENABLE
+        uprintf("Matrix scans: %u\n", total_scans);
+#    endif
+        total_scans = 0;
+        last_time   = timer_read();
+    }
 #endif
-            }
-        }
-        gpio_write_pin_high(col_pins[col]);
-        hall_discharge_capacitors();
-    }
+    return changed;
 }
 
 uint8_t matrix_scan(void) {
@@ -666,10 +665,6 @@ uint8_t matrix_scan(void) {
         return false;
     }
 #endif
-    if (calibrating) {
-        matrix_scan_calibrate();
-        return false;
-    }
     // Keyboard funcionality
     return matrix_scan_keyboard();
 }
@@ -777,7 +772,7 @@ void on_via_change_threshold_by_key(uint8_t row, uint8_t col, uint16_t keycode) 
 }
 
 void on_via_change_curve_by_key(uint8_t row, uint8_t col, uint16_t keycode) {
-    uint8_t index          = (row * MATRIX_COLS) + col;
+    uint8_t index      = (row * MATRIX_COLS) + col;
     hall_curves[index] = hall_keycode_to_curve(keycode, hall_curve);
 #ifdef CONSOLE_ENABLE
     uprintf("Changed key curve, col: %u, row: %u, curve: %u\n", col, row, hall_curves[index]);
