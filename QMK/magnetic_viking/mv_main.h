@@ -33,15 +33,18 @@ enum layer_names { _BASE, _FN, _GAMING, _MIDI, _THRESHOLD, _CURVE };
 // Hall sensor configs
 #define HALL_GET_BASE_SCANS 100   // Rounds to get base value
 #define HALL_MIN_BASE 100         // Min base value
-#define HALL_MIN_RANGE 60         // Min analog value from base
+#define HALL_MIN_RANGE 30        // Min analog value from base
 #define HALL_MAX_RANGE 512        // Max analog value from base
 #define HALL_WAIT_US_LOAD 3       // Wait to load
 #define HALL_WAIT_US_DISCHARGE 18 // Wait to discharge
 
 #define HALL_DEFAULT_THRESHOLD 50   // Threshold trigger value in percent
-#define HALL_THRESHOLD_MARGIN 5     // Margin threshold in percent
-#define HALL_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
-#define HALL_FAST_RELEASE_MARGIN 5  // Margin fast release point percent
+#define HALL_THRESHOLD_MARGIN 6     // Margin threshold in percent
+#define HALL_PRESS_RELEASE_MARGIN 4 // Margin pressed / release point percent
+#define HALL_FAST_RELEASE_MARGIN 4  // Margin fast release point percent
+
+#define CORE1_WAIT_INIT 600        // Wait milliseconds to init core 1
+#define CORE1_WAIT_SLEEP_WAKEUP 10 // Timeout to wait core 1
 
 // Shared
 extern binary_semaphore_t    init_core1;
@@ -67,7 +70,7 @@ enum via_custom_value_id {
     id_hall_threshold,             // Threshold point
     id_hall_fast_release,          // Fast release and press again
     id_hall_curve,                 // Hall sensor curve response
-    id_btn_free                    // Free button
+    id_btn_reset_threshold                    // Free button
 };
 // clang-format on
 

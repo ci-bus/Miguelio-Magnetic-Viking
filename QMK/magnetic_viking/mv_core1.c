@@ -15,7 +15,7 @@ static void init_pins(void) {
 }
 
 void c1_init_kb(void) {
-    wait_ms(600);
+    wait_ms(CORE1_WAIT_INIT);
     init_pins();
 }
 

@@ -73,11 +73,7 @@ void matrix_hall_reset_range(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             uint8_t index = (row * MATRIX_COLS) + col;
-            if (valid_sensor(index)) {
-                matrix_hall_range[index] = HALL_MIN_RANGE;
-            } else {
-                matrix_hall_range[index] = HALL_MAX_RANGE;
-            }
+            matrix_hall_range[index] = HALL_MIN_RANGE;
         }
     }
 }
@@ -192,7 +188,7 @@ void matrix_hall_get_range(void) {
             matrix_hall_range[index] |= eeprom_read_byte(address + 1);
             // Secure min range
             if (matrix_hall_range[index] < HALL_MIN_RANGE) {
-                matrix_hall_range[index] = HALL_MIN_RANGE;
+                matrix_hall_range[index] = 0;
             }
         }
     }
@@ -203,8 +199,6 @@ void get_configuration_calibrating(void) {
     if (calibrating) {
         // Go to base layer
         layer_clear();
-        // Reset base values
-        matrix_hall_get_base();
         // Reset range eeprom
         matrix_hall_reset_range();
 #ifdef CONSOLE_ENABLE
@@ -223,10 +217,6 @@ void get_configuration_curves(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             uint8_t index = row * MATRIX_COLS + col;
-            // Skipping missing sensors
-            if (!valid_sensor(index)) {
-                continue;
-            }
             keypos_t key       = (keypos_t){.col = col, .row = row};
             uint16_t keycode   = keymap_key_to_keycode(_THRESHOLD, key);
             hall_curves[index] = hall_keycode_to_curve(keycode, hall_curve);
@@ -240,10 +230,6 @@ void get_configuration_hall_thresholds(void) {
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             uint8_t index = row * MATRIX_COLS + col;
-            // Skipping missing sensors
-            if (!valid_sensor(index)) {
-                continue;
-            }
             keypos_t key           = (keypos_t){.col = col, .row = row};
             uint16_t keycode       = keymap_key_to_keycode(_THRESHOLD, key);
             hall_thresholds[index] = hall_keycode_to_threshold(keycode, hall_threshold);
@@ -277,15 +263,15 @@ void get_configurations(void) {
 }
 
 void keyboard_post_init_kb(void) {
-    rgblight_disable();
-    wait_ms(600);
+    wait_ms(CORE1_WAIT_INIT);
     get_configurations();
+    rgblight_disable();
 #ifdef COUNT_SCANS
     last_time = timer_read();
 #endif
 }
 
-__attribute__((section(".ramfunc"))) uint8_t matrix_scan_keyboard(void) {
+uint8_t matrix_scan_keyboard(void) {
     bool changed = false;
 #ifdef MIDI_ENABLE
     uint16_t time = timer_read();
@@ -294,7 +280,7 @@ __attribute__((section(".ramfunc"))) uint8_t matrix_scan_keyboard(void) {
         for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
             uint8_t               index = row * MATRIX_COLS + col;
             atomic_uint_least32_t raw   = atomic_load(&matrix_hall_raw[index]);
-            if (matrix_hall_last_value[index] == raw || !valid_sensor(index)) {
+            if (matrix_hall_last_value[index] == raw || matrix_hall_range[index] == 0) {
                 continue;
             } else {
                 matrix_hall_last_value[index] = raw;
@@ -317,7 +303,7 @@ __attribute__((section(".ramfunc"))) uint8_t matrix_scan_keyboard(void) {
             if (calibrating) {
                 uint16_t temp_diff = raw < matrix_hall_base[index] ? matrix_hall_base[index] - raw : raw - matrix_hall_base[index];
                 // Update range
-                if (temp_diff > matrix_hall_range[index]) {
+                if (temp_diff > matrix_hall_range[index] && valid_sensor(index)) {
                     matrix_hall_range[index] = temp_diff;
 #ifdef CONSOLE_ENABLE
                     uprintf("Col: %u row: %u range: %u\n", col, row, matrix_hall_range[index]);
@@ -373,7 +359,7 @@ __attribute__((section(".ramfunc"))) uint8_t matrix_scan_keyboard(void) {
 
 uint8_t matrix_scan(void) {
 #ifdef COUNT_SCANS
-    uint16_t elapsed = timer_elapsed(last_time);
+    uint16_t elapsed = timer_elapsed_fast(last_time);
     if (elapsed >= 1000) {
         atomic_uint_least32_t raw = atomic_load(&matrix_hall_raw[0]);
         printf("%s %lu %s %lu\n", "Core 0 scans:", count, "Value sensor:", raw);
@@ -408,7 +394,7 @@ void custom_set_value(uint8_t *data) {
                     void *address = ((void *)EEPROM_HALL_RANGE_START) + (index * 2);
                     // Secure min range
                     if (matrix_hall_range[index] <= HALL_MIN_RANGE) {
-                        matrix_hall_range[index] = HALL_MIN_RANGE;
+                        matrix_hall_range[index] = 0;
                     }
                     eeprom_update_byte(address, (uint8_t)(matrix_hall_range[index] >> 8));
                     eeprom_update_byte(address + 1, (uint8_t)(matrix_hall_range[index] & 0xFF));
@@ -438,11 +424,10 @@ void custom_set_value(uint8_t *data) {
             get_configuration_curves();
             get_configuration_hall_thresholds();
             break;
-        case id_btn_free:
+        case id_btn_reset_threshold:
 #ifdef CONSOLE_ENABLE
             uprintf("Run core 1!\n");
 #endif
-            atomic_store(&run_core_1, true);
             break;
     }
 }
@@ -464,12 +449,12 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
             case id_custom_set_value: {
                 // Sleep core 1
                 atomic_store(&run_core_1, false);
-                wait_ms(10);
+                wait_ms(CORE1_WAIT_SLEEP_WAKEUP);
                 custom_set_value(value_id_and_data);
                 // Wakeup core 1
                 atomic_store(&run_core_1, true);
                 chBSemSignal(&init_core1);
-                wait_ms(10);
+                wait_ms(CORE1_WAIT_SLEEP_WAKEUP);
                 break;
             }
             case id_custom_get_value: {
@@ -518,7 +503,7 @@ bool via_command_kb(uint8_t *data, uint8_t length) {
     if (*command_id == id_dynamic_keymap_set_keycode) {
         // Sleep core 1
         atomic_store(&run_core_1, false);
-        wait_ms(10);
+        wait_ms(CORE1_WAIT_SLEEP_WAKEUP);
         // Process change
         uint8_t  layer   = command_data[0];
         uint8_t  row     = command_data[1];
@@ -537,7 +522,7 @@ bool via_command_kb(uint8_t *data, uint8_t length) {
         // Wakeup core 1
         atomic_store(&run_core_1, true);
         chBSemSignal(&init_core1);
-        wait_ms(10);
+        wait_ms(CORE1_WAIT_SLEEP_WAKEUP);
         // Feedback to VIA
         raw_hid_send(data, length);
         return true;
