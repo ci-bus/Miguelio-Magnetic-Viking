@@ -1,4 +1,4 @@
-#include "joystick.h"
+#include "mv_main.h"
 
 // clang-format off
 joystick_config_t joystick_axis[JOYSTICK_AXIS_COUNT] = {
