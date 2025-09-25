@@ -569,8 +569,6 @@ void init_joystick(void) {
 void matrix_scan_joystick(void) {
     memset(jt_axes_values, 0, sizeof(jt_axes_values));
     uint8_t jt_index = 0;
-    bool    changed  = false;
-
     for (uint8_t col = 0; col < MATRIX_COLS; col++) {
         if (jt_keys[jt_index].key.col != col) {
             continue;
@@ -579,23 +577,17 @@ void matrix_scan_joystick(void) {
             if (jt_keys[jt_index].key.row != row) {
                 continue;
             }
-            uint8_t               index = (row * MATRIX_COLS) + col;
-            atomic_uint_least32_t raw   = atomic_load(&matrix_hall_raw[index]);
-            if (matrix_hall_last_value[index] == raw || matrix_hall_range[index] == 0) {
-                continue;
-            } else {
-                matrix_hall_last_value[index] = raw;
-                changed                       = true;
-            }
-            uint16_t temp_diff  = raw < matrix_hall_base[index] ? matrix_hall_base[index] - raw : raw - matrix_hall_base[index];
-            uint8_t  axis_value = 0;
-            if (temp_diff > HALL_PRESS_RELEASE_MARGIN) {
+            uint8_t               index      = (row * MATRIX_COLS) + col;
+            atomic_uint_least32_t raw        = atomic_load(&matrix_hall_raw[index]);
+            uint16_t              temp_diff  = raw < matrix_hall_base[index] ? matrix_hall_base[index] - raw : raw - matrix_hall_base[index];
+            uint8_t               axis_value = 0;
+            if (temp_diff > HALL_PRESS_RELEASE_MARGIN && matrix_hall_range[index] != 0) {
                 axis_value = temp_diff * 127 / matrix_hall_range[index];
                 if (axis_value > 127) {
                     axis_value = 127;
                 }
             }
-            // Axes values
+            // Axes
             if (jt_keys[jt_index].index < JOYSTICK_AXIS_COUNT * 2) {
                 // Even sum and odd subtract
                 jt_axes_values[jt_keys[jt_index].index / 2] += axis_value * (jt_keys[jt_index].index & 1 ? 1 : -1);
@@ -606,7 +598,8 @@ void matrix_scan_joystick(void) {
                     jt_keys[jt_index].value = axis_value;
                 }
 #    endif
-            } else { // Buttons
+                // Buttons
+            } else {
                 uint8_t jt_button_index = jt_keys[jt_index].index - (JOYSTICK_AXIS_COUNT * 2);
                 uint8_t percent         = 0;
                 // Calcule percent pressed
@@ -669,12 +662,10 @@ void matrix_scan_joystick(void) {
         }
     }
     // Send axes
-    if (changed) {
-        for (uint8_t i = 0; i < JOYSTICK_AXIS_COUNT; i++) {
-            joystick_set_axis(i, jt_axes_values[i]);
-        }
-        joystick_flush();
+    for (uint8_t i = 0; i < JOYSTICK_AXIS_COUNT; i++) {
+        joystick_set_axis(i, jt_axes_values[i]);
     }
+    joystick_flush();
 }
 #endif
 
