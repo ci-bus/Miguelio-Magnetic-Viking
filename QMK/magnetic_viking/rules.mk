@@ -3,14 +3,15 @@ USB_WAIT_FOR_ENUMERATION = yes
 VIA_ENABLE = yes
 WS2812_DRIVER = vendor
 CUSTOM_MATRIX = yes
-SRC += mv_main.c
 CONSOLE_ENABLE = no
 JOYSTICK_ENABLE = yes
 MIDI_ENABLE = no
-
 LTO_ENABLE = yes
+DEBOUNCE_TYPE = custom
+SRC += mv_main.c
+SRC += mv_core1.c
+SRC += debounce.c
 SPLIT_KEYBOARD = no
-
 COMMAND_ENABLE = no
 MOUSEKEY_ENABLE = no
 NKRO_ENABLE = no
