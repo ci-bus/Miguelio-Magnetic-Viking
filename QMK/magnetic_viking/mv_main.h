@@ -40,8 +40,8 @@ enum layer_names { _BASE, _FN, _GAMING, _MIDI, _THRESHOLD, _CURVE };
 
 #define HALL_DEFAULT_THRESHOLD 50   // Threshold trigger value in percent
 #define HALL_THRESHOLD_MARGIN 6     // Margin threshold in percent
-#define HALL_PRESS_RELEASE_MARGIN 4 // Margin pressed / release point percent
-#define HALL_FAST_RELEASE_MARGIN 4  // Margin fast release point percent
+#define HALL_PRESS_RELEASE_MARGIN 5 // Margin pressed / release point percent
+#define HALL_FAST_RELEASE_MARGIN 5  // Margin fast release point percent
 
 #define CORE1_WAIT_INIT 600        // Wait milliseconds to init core 1
 #define CORE1_WAIT_SLEEP_WAKEUP 10 // Timeout to wait core 1
